@@ -29,6 +29,22 @@
 
 typedef HRESULT(WINAPI* pSetThreadDescription)(HANDLE, PCWSTR);
 
+SOPC_ReturnStatus SOPC_Thread_Create(SOPC_Thread* thread,
+    void* (*startFct)(void*),
+    void* startArgs,
+    const char* taskName);
+
+SOPC_ReturnStatus SOPC_Thread_CreatePrioritized(SOPC_Thread* thread,
+    void* (*startFct)(void*),
+    void* startArgs,
+    int priority,
+    const char* taskName)
+{
+// Windows doesn't support SCHED_FIFO or real time priority in a simple manner
+(void) priority; // remove warning
+return SOPC_Thread_Create(thread, startFct, startArgs, taskName);
+}
+
 SOPC_ReturnStatus SOPC_Condition_Init(SOPC_Condition* cond)
 {
     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;

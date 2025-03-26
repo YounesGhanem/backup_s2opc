@@ -58,6 +58,7 @@ struct SOPC_Socket_Address
  */
 struct SOPC_SocketSet
 {
+    int fdmax;  /**< max of the set */
     fd_set set; /**< set */
 };
 

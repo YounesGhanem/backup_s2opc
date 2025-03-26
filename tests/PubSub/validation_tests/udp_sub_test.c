@@ -72,7 +72,7 @@ static void setupConnection(void)
     dsReader = SOPC_ReaderGroup_Get_DataSetReader_At(subReader, 0);
     SOPC_ReaderGroup_Set_GroupId(subReader, (uint16_t) subGroupId);
     SOPC_ReaderGroup_Set_GroupVersion(subReader, subGroupVersion);
-    SOPC_ReaderGroup_Set_PublisherId_UInteger(subReader, 15300);
+    SOPC_ReaderGroup_Set_PublisherId_UInteger(subReader, 123);
 
     SOPC_DataSetReader_Set_DataSetWriterId(dsReader, 123);
 
@@ -82,7 +82,7 @@ static void setupConnection(void)
     meta = SOPC_DataSetReader_Get_FieldMetaData_At(dsReader, 0);
     SOPC_ASSERT(NULL != meta);
     SOPC_FieldMetaData_ArrayDimension_Move(meta, &arrDimension);
-    SOPC_FieldMetaData_Set_BuiltinType(meta, SOPC_UInt32_Id);
+    SOPC_FieldMetaData_Set_BuiltinType(meta, SOPC_UInt64_Id);
     // Var 2
     meta = SOPC_DataSetReader_Get_FieldMetaData_At(dsReader, 1);
     SOPC_ASSERT(NULL != meta);
@@ -284,7 +284,8 @@ static void readyToReceive(void* sockContext, SOPC_Socket sock)
             }
             SOPC_UADP_NetworkMessage_Delete(uadp_nm);
         }
-        SOPC_Atomic_Int_Set(&stop, true);
+        //Subscriber stops here after only one received message
+        //SOPC_Atomic_Int_Set(&stop, true);
     }
     else if (SOPC_STATUS_OK == status && buffer->length == 1)
     {
@@ -314,7 +315,8 @@ int main(void)
 
     SOPC_Helper_Endianness_Check();
 
-    SOPC_ReturnStatus status = SOPC_UDP_Socket_CreateToReceive(listenAddr, NULL, true, true, &sock);
+    //SOPC_ReturnStatus status = SOPC_UDP_Socket_CreateToReceive(listenAddr, NULL, true, true, &sock);
+    SOPC_ReturnStatus status = SOPC_UDP_Socket_CreateToReceive(listenAddr, "10.51.140.223", true, true, &sock);
     buffer = SOPC_Buffer_Create(4096);
 
     if (SOPC_STATUS_OK == status)
@@ -323,7 +325,8 @@ int main(void)
         SOPC_Sub_SocketsMgr_Initialize(NULL, 0, &sock, 1, readyToReceive, &timeout, 0);
     }
 
-    while (SOPC_STATUS_OK == status && false == SOPC_Atomic_Int_Get(&stop) && sleepCount > 0)
+    //while (SOPC_STATUS_OK == status && false == SOPC_Atomic_Int_Get(&stop) && sleepCount > 0)
+    while (SOPC_STATUS_OK == status && false == SOPC_Atomic_Int_Get(&stop))
     {
         SOPC_Sleep(100);
         sleepCount--;

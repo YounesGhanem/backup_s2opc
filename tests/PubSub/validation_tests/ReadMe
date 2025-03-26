@@ -1,0 +1,90 @@
+OPC UA PubSub Latency Test (UDP + UADP)
+✅ Goal
+
+This test aims to evaluate how well a Windows system handles periodic communication using the OPC UA PubSub model over UDP multicast, with UADP encoding.
+The main objective is to determine whether Windows can sustain low-latency transmission at a fixed rate (e.g., 100 ms), and whether it is suitable for near real-time tasks.
+
+🧪 Test Setup
+
+1 Publisher (udp_pub_test.c)
+1 Subscriber (udp_latency_test.c)
+
+Both running on the same machine
+Communication is one-way only (Pub → Sub)
+Messages are sent over multicast UDP
+
+🔁 Flow Diagram
+
++----------------+                        +----------------+
+|                |   Multicast UDP (UADP) |                |
+|   Publisher    |----------------------->|   Subscriber   |
+| (udp_pub_test) |   232.1.2.100:4840     | (udp_latency)  |
+|                |                        |                |
++----------------+                        +----------------+
+📦 Data Structure
+
+Each published UADP message contains 5 fields encoded as Variants:
+
+Field #	    Type	    Description
+0	        UInt64	    Timestamp in microseconds (since boot)
+1	        Byte	    Dummy value
+2	        UInt16	    Dummy value
+3	        DateTime	Current UTC time
+4	        UInt32	    Dummy value
+
+The subscriber only uses Field 0 to calculate the latency:
+latency = current_time_us - received_timestamp
+
+
+🕓 Timing Parameters
+
+Parameter	            Value
+Publish Interval	    Every 100 ms
+Timestamp Precision	    Microseconds
+Network Protocol        UDP Multicast
+Multicast Address	    232.1.2.100
+Port	                4840
+Interface (Rx)	        10.51.140.223
+UADP Message Type	    KeyFrame
+Sequence Numbers	    Enabled
+
+📈 Output Example
+
+Latency: 0 us
+Latency: 0 us
+Latency: 16 us
+Latency: 0 us
+
+CSV Log (latency_log.csv)
+
+timestamp,latency_us
+2778765,0
+2778875,0
+2779750,16
+2781343,0
+...
+This allows for post-analysis of timing and jitter.
+
+🧠 What This Test Tells You
+-Verifies that the Publisher sends at a fixed interval (100 ms)
+-Measures the time between Publisher timestamp and Subscriber reception
+-Detects latency anomalies (spikes, jitter)
+-Helps validate deterministic timing behavior on Windows
+
+⚠️ Limitations
+-Not a network latency test (no NIC-to-NIC path)
+-No hardware timestamping (since both apps run on same OS)
+-Windows is not a real-time OS – jitter may happen
+
+Wireshark is not reliable in this setup because TX and RX occur locally
+
+
+
+
+
+
+
+
+
+
+

@@ -138,6 +138,11 @@ target_compile_options(pub_scheduler_test PRIVATE ${S2OPC_COMPILER_FLAGS})
 target_compile_definitions(pub_scheduler_test PRIVATE ${S2OPC_DEFINITIONS})
 target_link_libraries(pub_scheduler_test PRIVATE s2opc_pubsub)
 
+add_executable(udp_latency_test "validation_tests/udp_latency_test.c")
+target_compile_options(udp_latency_test PRIVATE ${S2OPC_COMPILER_FLAGS})
+target_compile_definitions(udp_latency_test PRIVATE ${S2OPC_DEFINITIONS})
+target_link_libraries(udp_latency_test PRIVATE s2opc_pubsub)
+
 # Copy data
 add_custom_command(
   TARGET pub_scheduler_test POST_BUILD
@@ -264,10 +269,17 @@ endif()
 
 ## S2OPC PubSub interoperability tests ##
 
+# ${CMAKE_CURRENT_SOURCE_DIR}/helpers_platform_dep/windows/
+# add_executable(interop_sub_test
+#   "interop_tests/interop_sub_test.c"
+#   "${CMAKE_CURRENT_SOURCE_DIR}/helpers_platform_dep/windows/sopc_sockets.c"
+# )
+# target_link_libraries(interop_sub_test PRIVATE s2opc_pubsub s2opc_common)
 add_executable(interop_sub_test "interop_tests/interop_sub_test.c")
 target_compile_options(interop_sub_test PRIVATE ${S2OPC_COMPILER_FLAGS})
 target_compile_definitions(interop_sub_test PRIVATE ${S2OPC_DEFINITIONS})
-target_link_libraries(interop_sub_test PRIVATE s2opc_pubsub)
+target_link_libraries(interop_sub_test PRIVATE s2opc_pubsub  )
+
 
 if(UNIX)
 

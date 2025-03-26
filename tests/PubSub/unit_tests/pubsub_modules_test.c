@@ -1236,6 +1236,7 @@ static SOPC_TargetVariableCtx* getGlobalTargetVariable(const SOPC_Conf_Publisher
     {
         // Should not go there
         ck_assert(false);
+        return NULL;
     }
 }
 

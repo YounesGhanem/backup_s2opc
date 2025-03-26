@@ -28,6 +28,7 @@
 #include "sopc_network_layer.h"
 #include "sopc_threads.h"
 #include "sopc_udp_sockets.h"
+#include "sopc_time_reference.h" 
 
 #define MCAST_PORT "4840"
 #define MCAST_ADDR "232.1.2.100"
@@ -55,7 +56,7 @@ static SOPC_Dataset_LL_NetworkMessage* UDP_Pub_Test_Get_NetworkMessage(void)
     SOPC_Dataset_LL_DataSetMessage* dsm = SOPC_Dataset_LL_NetworkMessage_Get_DataSetMsg_At(nm, 0);
     SOPC_Dataset_LL_NetworkMessage_SetVersion(header, 1);
     SOPC_Dataset_LL_DataSetMsg_Allocate_DataSetField_Array(dsm, 5);
-    SOPC_Dataset_LL_NetworkMessage_Set_PublisherId_UInt32(header, 15300);
+    SOPC_Dataset_LL_NetworkMessage_Set_PublisherId_UInt32(header, 123);
     SOPC_Dataset_LL_NetworkMessage_Set_GroupId(nm, 1245);
     SOPC_Dataset_LL_NetworkMessage_Set_GroupVersion(nm, 963852);
     SOPC_Dataset_LL_DataSetMsg_Set_WriterId(dsm, 123);
@@ -75,10 +76,17 @@ static SOPC_Dataset_LL_NetworkMessage* UDP_Pub_Test_Get_NetworkMessage(void)
     SOPC_Dataset_LL_DataSetMsg_Set_EnableEmission(dsm, true);
     SOPC_Variant variant;
     // variant 1
+    // SOPC_Variant_Initialize(&variant);
+    // variant.BuiltInTypeId = SOPC_UInt32_Id;
+    // variant.ArrayType = SOPC_VariantArrayType_SingleValue;
+    // variant.Value.Uint32 = 12071982;
+
+    // variant 1 — send timestamp in µs (SOPC_TimeReference)
     SOPC_Variant_Initialize(&variant);
-    variant.BuiltInTypeId = SOPC_UInt32_Id;
+    variant.BuiltInTypeId = SOPC_UInt64_Id;
     variant.ArrayType = SOPC_VariantArrayType_SingleValue;
-    variant.Value.Uint32 = 12071982;
+    variant.Value.Uint64 = SOPC_TimeReference_GetCurrent();
+
     bool res = SOPC_Dataset_LL_DataSetMsg_Set_DataSetField_Variant_At(dsm, &variant, 0);
     SOPC_ASSERT(res);
 
@@ -149,9 +157,34 @@ int main(void)
     {
         while (SOPC_STATUS_OK == status && SOPC_Atomic_Int_Get(&stopPublisher) == false)
         {
+            // status = SOPC_UDP_Socket_SendTo(sock, multicastAddr, buffer);
+            // SOPC_ASSERT(SOPC_STATUS_OK == status);
+            // SOPC_Sleep(100);
+            //Update Time stamp
+            SOPC_Variant variant;
+            SOPC_Variant_Initialize(&variant);
+            variant.BuiltInTypeId = SOPC_UInt64_Id;
+            variant.ArrayType = SOPC_VariantArrayType_SingleValue;
+            variant.Value.Uint64 = SOPC_TimeReference_GetCurrent();
+            SOPC_Dataset_LL_DataSetMsg_Set_DataSetField_Variant_At(
+                SOPC_Dataset_LL_NetworkMessage_Get_DataSetMsg_At(nm, 0),
+                &variant,
+                0);
+
+            //Regenerate buffer
+            buffer = NULL;
+            buffer_payload = NULL;
+            errorCode = SOPC_UADP_NetworkMessage_Encode_Buffers(nm, NULL, &buffer, &buffer_payload);
+            SOPC_ASSERT(SOPC_NetworkMessage_Error_Code_None == errorCode);
+            errorCode = SOPC_UADP_NetworkMessage_BuildFinalMessage(NULL, buffer, &buffer_payload);
+            SOPC_ASSERT(SOPC_NetworkMessage_Error_Code_None == errorCode);
+
+            //Send
             status = SOPC_UDP_Socket_SendTo(sock, multicastAddr, buffer);
+            printf("Sent message with timestamp: %" PRIu64 "\n", variant.Value.Uint64);
             SOPC_ASSERT(SOPC_STATUS_OK == status);
             SOPC_Sleep(100);
+
         }
     }
     else
