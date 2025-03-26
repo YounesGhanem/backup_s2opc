@@ -1,0 +1,3683 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 1b4913789..72e8fb151 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -31,7 +31,7 @@ endif()
+ # S2OPC #
+ 
+ # Options
+-option(ENABLE_SAMPLES "Build the S2OPC library samples" ON)
++option(ENABLE_SAMPLES "Build the S2OPC library samples" OFF)
+ option(ENABLE_TESTING "Build the S2OPC library tests" ON)
+ 
+ add_subdirectory(src)
+diff --git a/CommonDefs.cmake b/CommonDefs.cmake
+index 73babd20e..04ec5e73d 100644
+--- a/CommonDefs.cmake
++++ b/CommonDefs.cmake
+@@ -108,9 +108,9 @@ if(NOT S2OPC_CLIENTSERVER_ONLY)
+ endif()
+ 
+ # Detect limitation on PubSub
+-if(WIN32 AND NOT S2OPC_CLIENTSERVER_ONLY)
+-  message(FATAL_ERROR "PubSub module requires platform dependent code not implemented yet on windows (see issue #747). Please set S2OPC_CLIENTSERVER_ONLY to exclude PubSub module.")
+-endif()
++ if(WIN32 AND NOT S2OPC_CLIENTSERVER_ONLY)
++   message(WARNING "Forcing PubSub compilation under Windows")
++ endif()
+ 
+ # Expat have specific requirements for static library and MSCV: XML_STATIC shall be defined by application using it
+ if(expat_FOUND)
+diff --git a/Modified_File b/Modified_File
+new file mode 100644
+index 000000000..b5bf7c570
+--- /dev/null
++++ b/Modified_File
+@@ -0,0 +1,14 @@
++CMakeLists.txt
++CommonDefs.cmake
++build_s2opc.bat
++samples/PubSub/benchmark/main.c
++samples/PubSub/benchmark/pubsub.c
++src/Common/helpers_platform_dep/windows/p_sopc_sockets.c
++src/Common/helpers_platform_dep/windows/p_sopc_sockets.h
++src/Common/helpers_platform_dep/windows/p_sopc_threads.c
++src/PubSub/publisher/sopc_pub_scheduler.c
++tests/PubSub/CMakeLists.txt
++tests/PubSub/data/config_pub_scheduler.xml
++tests/PubSub/unit_tests/pubsub_modules_test.c
++tests/PubSub/validation_tests/udp_pub_test.c
++tests/PubSub/validation_tests/udp_sub_test.c
+diff --git a/build_s2opc.bat b/build_s2opc.bat
+index 5b0f4c34a..55b38a44e 100644
+--- a/build_s2opc.bat
++++ b/build_s2opc.bat
+@@ -19,8 +19,8 @@
+ @IF NOT DEFINED S2OPC_NANO_PROFILE (set S2OPC_NANO_PROFILE=off)
+ @IF NOT DEFINED S2OPC_EVENT_MANAGEMENT (set S2OPC_EVENT_MANAGEMENT=off)
+ @IF NOT DEFINED S2OPC_NODE_MANAGEMENT (set S2OPC_NODE_MANAGEMENT=off)
+-@IF NOT DEFINED BUILD_SHARED_LIBS (set BUILD_SHARED_LIBS=on)
+-@IF NOT DEFINED ENABLE_TESTING (set ENABLE_TESTING=off)
++@IF NOT DEFINED BUILD_SHARED_LIBS (set BUILD_SHARED_LIBS=off)
++@IF NOT DEFINED ENABLE_TESTING (set ENABLE_TESTING=on)
+ @IF NOT DEFINED ENABLE_SAMPLES (set ENABLE_SAMPLES=off)
+ @IF NOT DEFINED WITH_PYS2OPC (set WITH_PYS2OPC=off)
+ @IF NOT DEFINED PYS2OPC_WHEEL_NAME (set PYS2OPC_WHEEL_NAME="")
+@@ -31,7 +31,8 @@
+ @IF not %ERRORLEVEL% == 0 exit /B
+ @
+ @REM VisualStudio version used for compilation: >= VS2017 necessary for S2OPC C99 compatibility
+-@IF NOT DEFINED VS_VERSION (set VS_VERSION="Visual Studio 15 2017 Win64")
++@REM @IF NOT DEFINED VS_VERSION (set VS_VERSION="Visual Studio 15 2017 Win64")
++ @IF NOT DEFINED VS_VERSION (set VS_VERSION="Visual Studio 17 2022")
+ @IF NOT DEFINED CONFIG (set CONFIG="Release")
+ @
+ @REM Comment if ENABLED_TESTING=off or if already built
+@@ -55,8 +56,8 @@ REM Configure S2OPC Project
+ @cd /D build
+ @IF not %ERRORLEVEL% == 0 goto :EXIT_FAIL
+ @
+-cmake -DBUILD_SHARED_LIBS=%BUILD_SHARED_LIBS% -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=%BUILD_SHARED_LIBS% -DS2OPC_CLIENTSERVER_ONLY=on -DWITH_PYS2OPC=%WITH_PYS2OPC% -DPYS2OPC_WHEEL_NAME=%PYS2OPC_WHEEL_NAME% -DS2OPC_NANO_PROFILE=%S2OPC_NANO_PROFILE% -DS2OPC_EVENT_MANAGEMENT=%S2OPC_EVENT_MANAGEMENT% -DS2OPC_NODE_MANAGEMENT=%S2OPC_NODE_MANAGEMENT% -DCMAKE_PREFIX_PATH=%CMAKE_LIBS_DIRS% -DMBEDTLS_INCLUDE_DIR=%MBEDTLS_BUILD_DIR%/../include -DMBEDTLS_LIBRARY=%MBEDTLS_BUILD_DIR%/library/%CONFIG%/mbedtls.lib -DMBEDX509_LIBRARY=%MBEDTLS_BUILD_DIR%/library/%CONFIG%/mbedx509.lib -DMBEDCRYPTO_LIBRARY=%MBEDTLS_BUILD_DIR%/library/%CONFIG%/mbedcrypto.lib -DENABLE_TESTING=%ENABLE_TESTING% -DENABLE_SAMPLES=%ENABLE_SAMPLES% .. -G %VS_VERSION%
+-@
++@REM cmake -DBUILD_SHARED_LIBS=%BUILD_SHARED_LIBS% -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=%BUILD_SHARED_LIBS% -DS2OPC_PUBSUB_ONLY=on -DS2OPC_CLIENTSERVER_ONLY=off -DWITH_PYS2OPC=%WITH_PYS2OPC% -DPYS2OPC_WHEEL_NAME=%PYS2OPC_WHEEL_NAME% -DS2OPC_NANO_PROFILE=%S2OPC_NANO_PROFILE% -DS2OPC_EVENT_MANAGEMENT=%S2OPC_EVENT_MANAGEMENT% -DS2OPC_NODE_MANAGEMENT=%S2OPC_NODE_MANAGEMENT% -DCMAKE_PREFIX_PATH=%CMAKE_LIBS_DIRS% -DMBEDTLS_INCLUDE_DIR=%MBEDTLS_BUILD_DIR%/../include -DMBEDTLS_LIBRARY=%MBEDTLS_BUILD_DIR%/library/%CONFIG%/mbedtls.lib -DMBEDX509_LIBRARY=%MBEDTLS_BUILD_DIR%/library/%CONFIG%/mbedx509.lib -DMBEDCRYPTO_LIBRARY=%MBEDTLS_BUILD_DIR%/library/%CONFIG%/mbedcrypto.lib -DENABLE_TESTING=%ENABLE_TESTING% -DENABLE_SAMPLES=%ENABLE_SAMPLES% .. -G %VS_VERSION%
++cmake -DBUILD_SHARED_LIBS=%BUILD_SHARED_LIBS% -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=%BUILD_SHARED_LIBS% -DS2OPC_PUBSUB_ONLY=on -DS2OPC_CLIENTSERVER_ONLY=off -DWITH_PYS2OPC=%WITH_PYS2OPC% -DPYS2OPC_WHEEL_NAME=%PYS2OPC_WHEEL_NAME% -DS2OPC_NANO_PROFILE=%S2OPC_NANO_PROFILE% -DS2OPC_EVENT_MANAGEMENT=%S2OPC_EVENT_MANAGEMENT% -DS2OPC_NODE_MANAGEMENT=%S2OPC_NODE_MANAGEMENT% -DCMAKE_PREFIX_PATH=%CMAKE_LIBS_DIRS% -DMBEDTLS_INCLUDE_DIR="C:/Users/ext-ghanemyo/Desktop/mbedtls/include" -DMBEDTLS_LIBRARY="C:/Users/ext-ghanemyo/Desktop/mbedtls/build/mbedtls/lib/mbedtls.lib" -DMBEDX509_LIBRARY="C:/Users/ext-ghanemyo/Desktop/mbedtls/build/mbedtls/lib/mbedx509.lib" -DMBEDCRYPTO_LIBRARY="C:/Users/ext-ghanemyo/Desktop/mbedtls/build/mbedtls/lib/mbedcrypto.lib" -DENABLE_TESTING=%ENABLE_TESTING% -DENABLE_SAMPLES=%ENABLE_SAMPLES% .. -G %VS_VERSION%
+ @IF not %ERRORLEVEL% == 0 goto :EXIT_FAIL
+ REM Build S2OPC Project
+ cmake --build . --config %CONFIG%
+diff --git a/samples/PubSub/benchmark/main.c b/samples/PubSub/benchmark/main.c
+index b289e5d13..c4e32b590 100644
+--- a/samples/PubSub/benchmark/main.c
++++ b/samples/PubSub/benchmark/main.c
+@@ -18,185 +18,204 @@
+  */
+ 
+ /** \file
+- *
+- * \brief This pubsub sample is used to benchmark publisher and subscriber internall process.
+- *
+- * Publisher :
+- * The publisher emmits a NetworkMessage which is composed of 8 DataSetMessages. Each DataSetMessage is compose of 7
+- * DataSetField which are UInt32 type.
+- *
+- * The main thread periodically updates the data sent by the publisher
+- *
+- * Subscriber :
+- * The subscriber expects a NetworkMessage which is composed of 8 DataSetMessages. Each DataSetMessage must be compose
+- * of 7 DataSetField of UInt32 type.
+- *
+- * The data is stored in cache
+- */
+-
+-#include <stdbool.h>
+-#include <stddef.h>
+-#include <stdio.h>
+-#include <stdlib.h>
+-#include <string.h>
+-#include <unistd.h>
+-
+-#include "pubsub.h"
+-#include "sopc_assert.h"
+-
+-#define KIND_BENCHMARK_DEFAULT PUBLISHER_BENCH
+-#define MAX_BUFFER_SIZE 1024
+-
+-typedef enum benchmark_kind_t
+-{
+-    PUBLISHER_BENCH,
+-    SUBSCRIBER_BENCH
+-} benchmark_kind_t;
+-
+-benchmark_kind_t benchKind = KIND_BENCHMARK_DEFAULT;
+-int priority = 99;
+-
+-char benchKindBuff[64] = {0};
+-/*************************************************/
+-
+-static char* enum_bench_type_to_char(benchmark_kind_t var)
+-{
+-    int res = 0;
+-    if (var == PUBLISHER_BENCH)
+-    {
+-        res = sprintf(benchKindBuff, "PUBLISHER_BENCH");
+-        SOPC_ASSERT(res == strlen("PUBLISHER_BENCH"));
+-        return benchKindBuff;
+-    }
+-    else if (var == SUBSCRIBER_BENCH)
+-    {
+-        res = sprintf(benchKindBuff, "SUBSCRIBER_BENCH");
+-        SOPC_ASSERT(res == strlen("SUBSCRIBER_BENCH"));
+-        return benchKindBuff;
+-    }
+-    else
+-    {
+-        res = sprintf(benchKindBuff, "UNKNOWN");
+-        SOPC_ASSERT(res == strlen("UNKNOWN"));
+-        return benchKindBuff;
+-    }
+-}
+-
++*
++* \brief This pubsub sample is used to benchmark publisher and subscriber internall process.
++*
++* Publisher :
++* The publisher emmits a NetworkMessage which is composed of 8 DataSetMessages. Each DataSetMessage is compose of 7
++* DataSetField which are UInt32 type.
++*
++* The main thread periodically updates the data sent by the publisher
++*
++* Subscriber :
++* The subscriber expects a NetworkMessage which is composed of 8 DataSetMessages. Each DataSetMessage must be compose
++* of 7 DataSetField of UInt32 type.
++*
++* The data is stored in cache
++*/
++
++ #include <stdbool.h>
++ #include <stddef.h>
++ #include <stdio.h>
++ #include <stdlib.h>
++ #include <string.h>
++ 
++ #ifdef _WIN32
++ // Minimal getopt substitute for Windows
++ int optind = 1;
++ char* optarg = NULL;
++ int getopt(int argc, char* const argv[], const char* optstring)
++ {
++     if (optind >= argc || argv[optind][0] != '-') return -1;
++     char opt = argv[optind][1];
++     const char* optpos = strchr(optstring, opt);
++     if (!optpos) return '?';
++     if (*(optpos + 1) == ':' && optind + 1 < argc)
++     {
++         optarg = argv[++optind];
++     }
++     else
++     {
++         optarg = NULL;
++     }
++     return argv[optind++][1];
++ }
++ #else
++ #include <unistd.h>
++ #endif
++ 
++ #include "pubsub.h"
++ #include "sopc_assert.h"
++ 
++ #define KIND_BENCHMARK_DEFAULT PUBLISHER_BENCH
++ #define MAX_BUFFER_SIZE 1024
++ 
++ typedef enum benchmark_kind_t
++ {
++     PUBLISHER_BENCH,
++     SUBSCRIBER_BENCH
++ } benchmark_kind_t;
++ 
++ benchmark_kind_t benchKind = KIND_BENCHMARK_DEFAULT;
++ int priority = 99;
++
++ char benchKindBuff[64] = {0};
+ /*************************************************/
+-
+-static bool benchmark(void)
+-{
++ 
++ static char* enum_bench_type_to_char(benchmark_kind_t var)
++ {
++     int res = 0;
++     if (var == PUBLISHER_BENCH)
++     {
++         res = sprintf(benchKindBuff, "PUBLISHER_BENCH");
++         SOPC_ASSERT(res == strlen("PUBLISHER_BENCH"));
++         return benchKindBuff;
++     }
++     else if (var == SUBSCRIBER_BENCH)
++     {
++         res = sprintf(benchKindBuff, "SUBSCRIBER_BENCH");
++         SOPC_ASSERT(res == strlen("SUBSCRIBER_BENCH"));
++         return benchKindBuff;
++     }
++     else
++     {
++         res = sprintf(benchKindBuff, "UNKNOWN");
++         SOPC_ASSERT(res == strlen("UNKNOWN"));
++         return benchKindBuff;
++     }
++ }
++
++ /*************************************************/
++
++  static bool benchmark(void)
++ {
+     // Initialize S2OPC toolkit
+-    bool res = PubSub_common_init();
+-
+-    if (res)
+-    {
+-        if (PUBLISHER_BENCH == benchKind)
+-        {
+-            res = PubSub_publisher_bench(priority);
+-        }
+-        else if (SUBSCRIBER_BENCH == benchKind)
+-        {
+-            res = PubSub_subscriber_bench(priority);
+-        }
+-        else
+-        {
+-            printf("ERROR: Unknown kind of bench. Check help of program\n");
+-            res = false;
+-        }
+-    }
+-    PubSub_common_clear();
+-    return res;
+-}
+-
+-/*************************************************/
+-static int check_priority(int prio)
+-{
+-    if (prio < 0 || prio > 99)
+-    {
+-        printf("value %d is not a priority accepted\n", prio);
+-        printf("Possible value are between 0 and 99 include\n");
+-        return -1;
+-    }
+-    else if (prio > 0)
+-    {
+-        uid_t uid = getuid();
+-        if (0 != uid)
+-        {
+-            printf("When thread priority is superior than 0 this program must be launch with sudo priviliege\n");
+-            return -2;
+-        }
+-    }
+-    return 0;
+-}
+-
+-/*************************************************/
+-
+-static void usage(char* fct_name)
+-{
+-    printf("%s [options] \n", fct_name);
+-    printf("\t\t\t launch S2OPC publisher or subscriber\n");
+-    printf("\n\t\t\t -k [pub|sub] kind of benchark launch publisher or a subscriber, by default %s\n",
+-           enum_bench_type_to_char(KIND_BENCHMARK_DEFAULT));
+-    printf("\t\t\t    notes: Subscriber benchmark create a publisher process running in a different CPU\n");
+-    printf("\t\t\t -h print this help message\n");
+-    printf("\t\t\t -p priority of the publisher/subscriber thread, by default %d\n", priority);
+-}
+-
+-int main(int argc, char* argv[])
+-{
+-    char* progname;
+-    /* Process the command line arguments. */
+-    progname = strrchr(argv[0], '/');
+-    progname = progname ? 1 + progname : argv[0];
+-    int opt;
+-    char buffer[MAX_BUFFER_SIZE] = {0};
+-    while ((opt = getopt(argc, argv, "hk:p:")) != -1)
+-    {
+-        switch (opt)
+-        {
+-        case 'h':
+-            usage(progname);
+-            return 0;
+-            break;
+-        case 'k':
+-            strncpy(buffer, optarg, MAX_BUFFER_SIZE - 1);
+-            break;
+-        case 'p':
+-            priority = atoi(optarg);
+-            break;
+-        case '?':
+-        default:
+-            usage(progname);
+-            return -1;
+-        }
+-    }
+-
+-    size_t len = strlen(buffer);
+-    if (0 != len)
+-    {
+-        if (0 == strncmp(buffer, "pub", strlen("pub")))
+-        {
+-            benchKind = PUBLISHER_BENCH;
+-        }
+-        else if (0 == strncmp(buffer, "sub", strlen("sub")))
+-        {
+-            benchKind = SUBSCRIBER_BENCH;
+-        }
+-        else
+-        {
+-            printf("value %s not supported with -k option\n", buffer);
+-            printf("Possible values are pub or sub\n");
+-            return -1;
+-        }
+-    }
+-
+-    int res = check_priority(priority);
+-    if (0 != res)
+-    {
+-        return res;
+-    }
+-
+-    benchmark();
+-    return 0;
+-}
++     bool res = PubSub_common_init();
++
++     if (res)
++     {
++         if (PUBLISHER_BENCH == benchKind)
++         {
++             res = PubSub_publisher_bench(priority);
++         }
++         else if (SUBSCRIBER_BENCH == benchKind)
++         {
++             res = PubSub_subscriber_bench(priority);
++         }
++         else
++         {
++             printf("ERROR: Unknown kind of bench. Check help of program\n");
++             res = false;
++         }
++     }
++     PubSub_common_clear();
++     return res;
++ }
++
++ /*************************************************/
++ static int check_priority(int prio)
++ {
++ #ifdef _WIN32
++     return 0;
++ #else
++     if (prio < 0 || prio > 99)
++     {
++         printf("value %d is not a priority accepted\n", prio);
++         printf("Possible values are between 0 and 99 inclusive\n");
++         return -1;
++     }
++     else if (prio > 0)
++     {
++         uid_t uid = getuid();
++         if (0 != uid)
++         {
++             printf("When thread priority is above 0, run with sudo privileges\n");
++             return -2;
++         }
++     }
++     return 0;
++ #endif
++ }
++ 
++ static void usage(char* fct_name)
++ {
++     printf("%s [options] \n", fct_name);
++     printf("\t-k [pub|sub] : Kind of benchmark (default: %s)\n", enum_bench_type_to_char(KIND_BENCHMARK_DEFAULT));
++     printf("\t-p [priority] : Set thread priority (default: %d)\n", priority);
++     printf("\t-h            : Show help\n");
++ }
++ 
++ int main(int argc, char* argv[])
++ {
++     char* progname = strrchr(argv[0], '/');
++     progname = progname ? 1 + progname : argv[0];
++     int opt;
++     char buffer[MAX_BUFFER_SIZE] = {0};
++ 
++     while ((opt = getopt(argc, argv, "hk:p:")) != -1)
++     {
++         switch (opt)
++         {
++         case 'h':
++             usage(progname);
++             return 0;
++         case 'k':
++             strncpy(buffer, optarg, MAX_BUFFER_SIZE - 1);
++             break;
++         case 'p':
++             priority = atoi(optarg);
++             break;
++         case '?':
++         default:
++             usage(progname);
++             return -1;
++         }
++     }
++ 
++     if (strlen(buffer) > 0)
++     {
++         if (strncmp(buffer, "pub", 3) == 0)
++         {
++             benchKind = PUBLISHER_BENCH;
++         }
++         else if (strncmp(buffer, "sub", 3) == 0)
++         {
++             benchKind = SUBSCRIBER_BENCH;
++         }
++         else
++         {
++             printf("Invalid -k option value: %s\n", buffer);
++             printf("Expected: pub or sub\n");
++             return -1;
++         }
++     }
++ 
++     int res = check_priority(priority);
++     if (res != 0)
++     {
++         return res;
++     }
++ 
++     return benchmark() ? 0 : -1;
++ }
++ 
+\ No newline at end of file
+diff --git a/samples/PubSub/benchmark/pubsub.c b/samples/PubSub/benchmark/pubsub.c
+index 52ee4be36..25f5f1c5a 100644
+--- a/samples/PubSub/benchmark/pubsub.c
++++ b/samples/PubSub/benchmark/pubsub.c
+@@ -17,330 +17,186 @@
+  * under the License.
+  */
+ 
+-#include <signal.h>
+-#include <stdio.h>
+-#include <stdlib.h>
+-#include <string.h>
+-#include <unistd.h>
+-
+-#include <pthread.h>
+-
+-#include "cache.h"
+-#include "sopc_assert.h"
+-#include "sopc_common.h"
+-#include "sopc_date_time.h"
+-#include "sopc_encodeabletype.h"
+-#include "sopc_macros.h"
+-#include "sopc_mem_alloc.h"
+-#include "sopc_pub_scheduler.h"
+-#include "sopc_pubsub_conf.h"
+-#include "sopc_sub_scheduler.h"
+-#include "sopc_threads.h"
+-#include "sopc_xml_loader.h"
+-
+-#include "pubsub.h"
+-
+-// Cyclic time to update global value
+-#define SLEEP_TIMEOUT_MS 20
+-
+-#define NB_FIELDS_PER_DSM 7
+-
+-static int32_t gDsmValues[NB_FIELDS_PER_DSM] = {1, 2, 3, 4, 5, 6, 7};
+-
+-SOPC_Mutex globalValue_lock;
+-
+-volatile sig_atomic_t stopSignal = 0;
+-
+-SOPC_DataValue* get_source_value(const OpcUa_ReadValueId* nodesToRead,
+-                                 const int32_t nbValues); /* Source callback for Publisher */
+-static void signal_stop_program(int sig);                 /* catch stop signal to exit properly the program */
+-
+-static void update_value(void)
+-{
+-    SOPC_Mutex_Lock(&globalValue_lock);
+-    for (int i = 0; i < NB_FIELDS_PER_DSM; i++)
+-    {
+-        gDsmValues[i] += i + 1;
+-    }
+-    SOPC_Mutex_Unlock(&globalValue_lock);
+-}
+-
+-bool PubSub_common_init(void)
+-{
+-    /* Signal handling: close the program gracefully when interrupted */
+-    signal(SIGINT, signal_stop_program);
+-    signal(SIGTERM, signal_stop_program);
+-
+-    SOPC_Mutex_Initialization(&globalValue_lock);
+-
+-    /* Set log to debug trace and log path to directory "logs/" */
+-    const char* logPath = "./logs/";
+-    SOPC_Log_Configuration logConfiguration = SOPC_Common_GetDefaultLogConfiguration();
+-    logConfiguration.logLevel = SOPC_LOG_LEVEL_ERROR;
+-    logConfiguration.logSysConfig.fileSystemLogConfig.logDirPath = logPath;
+-
+-    bool res = (SOPC_STATUS_OK == SOPC_Common_Initialize(logConfiguration));
+-
+-    if (!res)
+-    {
+-        printf("ERROR: Toolkit Initialisation failed\n");
+-    }
+-    return res;
+-}
+-
+-void PubSub_common_clear(void)
+-{
+-    SOPC_Common_Clear();
+-    SOPC_Mutex_Clear(&globalValue_lock);
+-}
+-
+-static int setConfig_fromFile(SOPC_PubSubConfiguration** config, const char* configPath)
+-{
+-    if (NULL == config || NULL == configPath)
+-    {
+-        printf("Invalid parameters setConfig_fromFile\n");
+-        return false;
+-    }
+-
+-    bool res = true;
+-
+-    FILE* fd = fopen(configPath, "r");
+-    if (NULL == fd)
+-    {
+-        res = false;
+-        printf("ERROR: Failed to open file %s\n", configPath);
+-    }
+-    if (res && NULL != fd)
+-    {
+-        *config = SOPC_PubSubConfig_ParseXML(fd);
+-        if (NULL == *config)
+-        {
+-            res = false;
+-            printf("Failed to parse XML configuration file %s\n", configPath);
+-        }
+-        int closed = fclose(fd);
+-        if (0 != closed)
+-        {
+-            printf("ERROR: Failed to close file %s with status %d\n", configPath, closed);
+-            res = false;
+-        }
+-    }
+-    if (res)
+-    {
+-        printf("Publisher configured with file %s\n", configPath);
+-    }
+-    return res;
+-}
+-
+-bool PubSub_publisher_bench(int priority)
+-{
+-    if (priority < 0 || priority > 99)
+-    {
+-        return false;
+-    }
+-    bool res = true;
+-    SOPC_ReturnStatus status = SOPC_STATUS_OK;
+-    SOPC_PubSubConfiguration* config = NULL;
+-    SOPC_PubSourceVariableConfig* sourceConfig = NULL;
+-
+-    res = setConfig_fromFile(&config, CONFIG_PUBLISHER_PATH);
+-
+-    if (res)
+-    {
+-        sourceConfig = SOPC_PubSourceVariableConfig_Create(&get_source_value);
+-        if (sourceConfig == NULL)
+-        {
+-            printf("ERROR: publisher callback configuration hasn't been set\n");
+-            status = SOPC_STATUS_NOK;
+-        }
+-        if (SOPC_STATUS_OK == status)
+-        {
+-            res = SOPC_PubScheduler_Start(config, sourceConfig, priority);
+-            if (!res)
+-            {
+-                printf("ERROR: publisher scheduler failed starting. Check logs\n");
+-            }
+-            else
+-            {
+-                printf("Publisher started \n");
+-            }
+-        }
+-        /* Wait for a signal and do your work */
+-        while (SOPC_STATUS_OK == status && res && 0 == stopSignal)
+-        {
+-            SOPC_Sleep(SLEEP_TIMEOUT_MS);
+-            update_value();
+-        }
+-    }
+-    if (stopSignal)
+-    {
+-        printf("Program stop by signal handling\n");
+-    }
+-    else
+-    {
+-        printf("Program stop caused by previous error. Check logs\n");
+-    }
+-    SOPC_PubScheduler_Stop();
+-    SOPC_PubSubConfiguration_Delete(config);
+-    SOPC_PubSourceVariableConfig_Delete(sourceConfig);
+-    return res;
+-}
+-
+-static bool subscriber_bench(int priority)
+-{
+-    if (priority < 0 || priority > 99)
+-    {
+-        return false;
+-    }
+-    bool res = true;
+-    SOPC_ReturnStatus status = SOPC_STATUS_OK;
+-    SOPC_PubSubConfiguration* config = NULL;
+-    SOPC_SubTargetVariableConfig* targetConfig = NULL;
+-
+-    res = setConfig_fromFile(&config, CONFIG_SUBSCRIBER_PATH);
+-
+-    if (res)
+-    {
+-        targetConfig = SOPC_SubTargetVariableConfig_Create(&Cache_SetTargetVariables);
+-        if (targetConfig == NULL)
+-        {
+-            printf("ERROR: subscriber callback configuration hasn't been set\n");
+-            status = SOPC_STATUS_NOK;
+-        }
+-        if (SOPC_STATUS_OK == status)
+-        {
+-            /* Initialize Cache */
+-            res = Cache_Initialize(config);
+-            if (!res)
+-            {
+-                printf("ERROR: initializing cache failed\n");
+-                status = SOPC_STATUS_NOK;
+-            }
+-        }
+-        if (SOPC_STATUS_OK == status)
+-        {
+-            res = SOPC_SubScheduler_Start(config, targetConfig, NULL, NULL, NULL, priority);
+-            if (!res)
+-            {
+-                printf("ERROR: subscriber scheduler failed starting. Check logs\n");
+-            }
+-            else
+-            {
+-                printf("Subscriber started \n");
+-            }
+-        }
+-        /* Wait for a signal and do your work */
+-        while (SOPC_STATUS_OK == status && res && 0 == stopSignal)
+-        {
+-            SOPC_Sleep(SLEEP_TIMEOUT_MS);
+-        }
+-    }
+-    if (stopSignal)
+-    {
+-        printf("Program stop by signal\n");
+-    }
+-    else
+-    {
+-        printf("Program stop caused by previous error. Check logs\n");
+-    }
+-    SOPC_SubScheduler_Stop();
+-    SOPC_PubSubConfiguration_Delete(config);
+-    SOPC_SubTargetVariableConfig_Delete(targetConfig);
+-    Cache_Clear();
+-    return res;
+-}
+-
+-// core_id = 0, 1, ... n-1, where n is the system's number of cores
+-static int stick_this_thread_to_core(int core_id)
+-{
+-    long num_cores = sysconf(_SC_NPROCESSORS_ONLN);
+-    if (core_id < 0 || core_id >= num_cores)
+-        return -1;
+-
+-    cpu_set_t cpuset;
+-    CPU_ZERO(&cpuset);
+-    CPU_SET((size_t) core_id, &cpuset);
+-
+-    pid_t currentPid = getpid();
+-    return sched_setaffinity(currentPid, sizeof(cpu_set_t), &cpuset);
+-}
+-
+-bool PubSub_subscriber_bench(int priority)
+-{
+-    // launch a publisher in another CPU
+-    bool res = true;
+-    pid_t pidPublisher = fork();
+-
+-    // Let run the two processes on different cores
+-    if (0 == pidPublisher)
+-    {
+-        int corePublisher = 1;
+-        int result = stick_this_thread_to_core(corePublisher);
+-        if (0 != result)
+-        {
+-            printf("Failed to attach publisher process to core %d\n", corePublisher);
+-            res = false;
+-        }
+-        else
+-        {
+-            printf("Publisher process attach to core %d\n", corePublisher);
+-            res = PubSub_publisher_bench(priority);
+-        }
+-    }
+-    else
+-    {
+-        int coreSubscriber = 0;
+-        int result = stick_this_thread_to_core(coreSubscriber);
+-        if (0 != result)
+-        {
+-            printf("Failed to attach subscriber process to core %d\n", coreSubscriber);
+-            res = false;
+-        }
+-        else
+-        {
+-            printf("subscriber process attach to core %d\n", coreSubscriber);
+-            res = subscriber_bench(priority);
+-        }
+-        kill(pidPublisher, SIGTERM);
+-    }
+-    return res;
+-}
+-
+-/* Source callback */
+-SOPC_DataValue* get_source_value(const OpcUa_ReadValueId* nodesToRead, const int32_t nbValues)
+-{
+-    SOPC_ASSERT(NULL != nodesToRead && nbValues > 0);
+-    SOPC_ASSERT(nbValues <= NB_FIELDS_PER_DSM);
+-
+-    SOPC_DataValue* dvs = SOPC_Calloc((size_t) nbValues, sizeof(SOPC_DataValue));
+-    SOPC_ASSERT(dvs != NULL);
+-
+-    for (int32_t i = 0; i < nbValues; ++i)
+-    {
+-        SOPC_DataValue* dv = &dvs[i];
+-
+-        SOPC_DataValue_Initialize(dv);
+-        SOPC_Variant* var = &dv->Value;
+-        var->BuiltInTypeId = SOPC_Int32_Id;
+-        var->ArrayType = SOPC_VariantArrayType_SingleValue;
+-
+-        SOPC_Mutex_Lock(&globalValue_lock);
+-        var->Value.Int32 = gDsmValues[i];
+-        SOPC_Mutex_Unlock(&globalValue_lock);
+-    }
+-
+-    return dvs;
+-}
++/* 
++ * NOTE: This sample has been adapted to be compatible with Windows systems.
++ * Modified by ext-ghanemyo
++ */
+ 
+-static void signal_stop_program(int sig)
+-{
+-    SOPC_UNUSED_ARG(sig);
+-    if (stopSignal != 0)
+-    {
+-        exit(1);
+-    }
+-    else
+-    {
+-        stopSignal = 1;
+-    }
+-}
++ #include <stdbool.h>
++ #include <stddef.h>
++ #include <stdio.h>
++ #include <stdlib.h>
++ #include <string.h>
++ 
++ #ifdef _WIN32
++ // Minimal getopt substitute for Windows
++ int optind = 1;
++ char* optarg = NULL;
++ int getopt(int argc, char* const argv[], const char* optstring)
++ {
++     if (optind >= argc || argv[optind][0] != '-') return -1;
++     char opt = argv[optind][1];
++     const char* optpos = strchr(optstring, opt);
++     if (!optpos) return '?';
++     if (*(optpos + 1) == ':' && optind + 1 < argc)
++     {
++         optarg = argv[++optind];
++     }
++     else
++     {
++         optarg = NULL;
++     }
++     return argv[optind++][1];
++ }
++ #else
++ #include <unistd.h>
++ #endif
++ 
++ #include "pubsub.h"
++ #include "sopc_assert.h"
++ 
++ #define KIND_BENCHMARK_DEFAULT PUBLISHER_BENCH
++ #define MAX_BUFFER_SIZE 1024
++ 
++ typedef enum benchmark_kind_t
++ {
++     PUBLISHER_BENCH,
++     SUBSCRIBER_BENCH
++ } benchmark_kind_t;
++ 
++ benchmark_kind_t benchKind = KIND_BENCHMARK_DEFAULT;
++ int priority = 99;
++ char benchKindBuff[64] = {0};
++ 
++ static char* enum_bench_type_to_char(benchmark_kind_t var)
++ {
++     int res = 0;
++     if (var == PUBLISHER_BENCH)
++     {
++         res = sprintf(benchKindBuff, "PUBLISHER_BENCH");
++         SOPC_ASSERT(res == strlen("PUBLISHER_BENCH"));
++         return benchKindBuff;
++     }
++     else if (var == SUBSCRIBER_BENCH)
++     {
++         res = sprintf(benchKindBuff, "SUBSCRIBER_BENCH");
++         SOPC_ASSERT(res == strlen("SUBSCRIBER_BENCH"));
++         return benchKindBuff;
++     }
++     else
++     {
++         res = sprintf(benchKindBuff, "UNKNOWN");
++         SOPC_ASSERT(res == strlen("UNKNOWN"));
++         return benchKindBuff;
++     }
++ }
++ 
++ static bool benchmark(void)
++ {
++     bool res = PubSub_common_init();
++     if (res)
++     {
++         if (PUBLISHER_BENCH == benchKind)
++         {
++             res = PubSub_publisher_bench(priority);
++         }
++         else if (SUBSCRIBER_BENCH == benchKind)
++         {
++             res = PubSub_subscriber_bench(priority);
++         }
++         else
++         {
++             printf("ERROR: Unknown kind of bench. Check help of program\n");
++             res = false;
++         }
++     }
++     PubSub_common_clear();
++     return res;
++ }
++ 
++ static int check_priority(int prio)
++ {
++ #ifdef _WIN32
++     return 0;
++ #else
++     if (prio < 0 || prio > 99)
++     {
++         printf("value %d is not a priority accepted\n", prio);
++         printf("Possible values are between 0 and 99 inclusive\n");
++         return -1;
++     }
++     else if (prio > 0)
++     {
++         uid_t uid = getuid();
++         if (0 != uid)
++         {
++             printf("When thread priority is above 0, run with sudo privileges\n");
++             return -2;
++         }
++     }
++     return 0;
++ #endif
++ }
++ 
++ static void usage(char* fct_name)
++ {
++     printf("%s [options] \n", fct_name);
++     printf("\t-k [pub|sub] : Kind of benchmark (default: %s)\n", enum_bench_type_to_char(KIND_BENCHMARK_DEFAULT));
++     printf("\t-p [priority] : Set thread priority (default: %d)\n", priority);
++     printf("\t-h            : Show help\n");
++ }
++ 
++ int main(int argc, char* argv[])
++ {
++     char* progname = strrchr(argv[0], '/');
++     progname = progname ? 1 + progname : argv[0];
++     int opt;
++     char buffer[MAX_BUFFER_SIZE] = {0};
++ 
++     while ((opt = getopt(argc, argv, "hk:p:")) != -1)
++     {
++         switch (opt)
++         {
++         case 'h':
++             usage(progname);
++             return 0;
++         case 'k':
++             strncpy(buffer, optarg, MAX_BUFFER_SIZE - 1);
++             break;
++         case 'p':
++             priority = atoi(optarg);
++             break;
++         case '?':
++         default:
++             usage(progname);
++             return -1;
++         }
++     }
++ 
++     if (strlen(buffer) > 0)
++     {
++         if (strncmp(buffer, "pub", 3) == 0)
++         {
++             benchKind = PUBLISHER_BENCH;
++         }
++         else if (strncmp(buffer, "sub", 3) == 0)
++         {
++             benchKind = SUBSCRIBER_BENCH;
++         }
++         else
++         {
++             printf("Invalid -k option value: %s\n", buffer);
++             printf("Expected: pub or sub\n");
++             return -1;
++         }
++     }
++ 
++     int res = check_priority(priority);
++     if (res != 0)
++     {
++         return res;
++     }
++ 
++     return benchmark() ? 0 : -1;
++ }
++ 
+\ No newline at end of file
+diff --git a/src/Common/helpers_platform_dep/windows/p_sopc_eth_sockets.c b/src/Common/helpers_platform_dep/windows/p_sopc_eth_sockets.c
+new file mode 100644
+index 000000000..346169862
+--- /dev/null
++++ b/src/Common/helpers_platform_dep/windows/p_sopc_eth_sockets.c
+@@ -0,0 +1,142 @@
++#include <winsock2.h>
++#include <windows.h>
++#include "sopc_common_constants.h"
++#include "sopc_eth_sockets.h"
++#include "sopc_mem_alloc.h"
++#include "sopc_macros.h"
++#include "p_sopc_sockets.h"
++
++struct SOPC_ETH_Socket_ReceiveAddressInfo
++{
++    //struct sockaddr_ll addr;
++    bool recvMulticast;
++    bool recvForDest;
++    unsigned char recvDestAddr[6];
++    bool recvFromSource;
++    unsigned char recvSourceAddr[6];
++};
++
++SOPC_ReturnStatus SOPC_ETH_Socket_CreateSendAddressInfo(const char* interfaceName,
++                                                        const char* destMACaddr,
++                                                        SOPC_ETH_Socket_SendAddressInfo** sendAddInfo)
++{
++    (void) interfaceName;
++    (void) destMACaddr;
++    (void) sendAddInfo;
++
++    // Ethernet raw socket not supported on Windows
++    return SOPC_STATUS_NOT_SUPPORTED;
++}
++
++
++SOPC_ReturnStatus SOPC_ETH_Socket_CreateToSend(SOPC_ETH_Socket_SendAddressInfo* sendAddrInfo,
++                                               bool setNonBlocking,
++                                               SOPC_Socket* sock)
++{
++    (void) sendAddrInfo;
++    (void) setNonBlocking;
++    (void) sock;
++
++    // Not supported in windows
++    return SOPC_STATUS_NOT_SUPPORTED;
++}
++
++
++
++
++SOPC_ReturnStatus SOPC_ETH_Socket_SendTo(SOPC_Socket sock,
++                                         const SOPC_ETH_Socket_SendAddressInfo* sendAddrInfo,
++                                         uint16_t etherType,
++                                         SOPC_Buffer* buffer)
++{
++    (void) sock;
++    (void) sendAddrInfo;
++    (void) etherType;
++    (void) buffer;
++
++    // Non supporté sur Windows (AF_PACKET, RAW Ethernet)
++    return SOPC_STATUS_NOT_SUPPORTED;
++}
++
++
++
++void SOPC_ETH_Socket_Close(SOPC_Socket* sock)
++{
++    if (NULL != sock && SOPC_INVALID_SOCKET != *sock)
++    {
++        int res = 0;
++        S2OPC_TEMP_FAILURE_RETRY(res, closesocket((*sock)->sock));
++        SOPC_Free(*sock);
++        *sock = SOPC_INVALID_SOCKET;
++    }
++}
++
++
++
++SOPC_ReturnStatus SOPC_ETH_Socket_CreateReceiveAddressInfo(const char* interfaceName,
++    bool recvMulticast,
++    const char* destMACaddr,
++    const char* sourceMACaddr,
++    SOPC_ETH_Socket_ReceiveAddressInfo** recvAddInfo)
++{
++(void) interfaceName;
++(void) recvMulticast;
++(void) destMACaddr;
++(void) sourceMACaddr;
++
++if (NULL == recvAddInfo)
++{
++return SOPC_STATUS_INVALID_PARAMETERS;
++}
++
++// Allocation vide pour satisfaire l'API, mais ne fait rien.
++*recvAddInfo = SOPC_Calloc(1, sizeof(SOPC_ETH_Socket_ReceiveAddressInfo));
++if (NULL == *recvAddInfo)
++{
++return SOPC_STATUS_OUT_OF_MEMORY;
++}
++
++// Marque le stub comme "non fonctionnel" si jamais appelé.
++return SOPC_STATUS_OK;
++}
++
++
++
++SOPC_ReturnStatus SOPC_ETH_Socket_CreateToReceive(SOPC_ETH_Socket_ReceiveAddressInfo* receiveAddrInfo,
++    bool setNonBlocking,
++    SOPC_Socket* sock)
++{
++(void) receiveAddrInfo;
++(void) setNonBlocking;
++
++if (NULL == sock)
++{
++return SOPC_STATUS_INVALID_PARAMETERS;
++}
++
++// On retourne une socket invalide, ce mode n'est pas supporté sous Windows
++*sock = SOPC_INVALID_SOCKET;
++
++return SOPC_STATUS_NOT_SUPPORTED;
++}
++
++
++
++
++SOPC_ReturnStatus SOPC_ETH_Socket_ReceiveFrom(SOPC_Socket sock,
++    const SOPC_ETH_Socket_ReceiveAddressInfo* receiveAddrInfo,
++    bool checkEtherType,
++    uint16_t etherType,
++    SOPC_Buffer* buffer)
++{
++(void) sock;
++(void) receiveAddrInfo;
++(void) checkEtherType;
++(void) etherType;
++(void) buffer;
++
++// Ce mode RAW Ethernet n'est pas supporté sous Windows
++return SOPC_STATUS_NOT_SUPPORTED;
++}
++
++
+diff --git a/src/Common/helpers_platform_dep/windows/p_sopc_sockets.c b/src/Common/helpers_platform_dep/windows/p_sopc_sockets.c
+index 55a3ab582..7ded1a5ce 100644
+--- a/src/Common/helpers_platform_dep/windows/p_sopc_sockets.c
++++ b/src/Common/helpers_platform_dep/windows/p_sopc_sockets.c
+@@ -1,655 +1,750 @@
+-/*
+- * Licensed to Systerel under one or more contributor license
+- * agreements. See the NOTICE file distributed with this work
+- * for additional information regarding copyright ownership.
+- * Systerel licenses this file to you under the Apache
+- * License, Version 2.0 (the "License"); you may not use this
+- * file except in compliance with the License. You may obtain
+- * a copy of the License at
+- *
+- *   http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing,
+- * software distributed under the License is distributed on an
+- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+- * KIND, either express or implied.  See the License for the
+- * specific language governing permissions and limitations
+- * under the License.
+- */
+-
+-#include "p_sopc_sockets.h"
+-
+-#include "sopc_common_constants.h"
+-#include "sopc_raw_sockets.h"
+-
+-#include "sopc_mem_alloc.h"
+-#include "sopc_threads.h"
+-
+-static WSADATA wsaData;
+-
+-SOPC_ReturnStatus SOPC_Socket_Network_Enable_Keepalive(SOPC_Socket sock,
+-                                                       unsigned int time,
+-                                                       unsigned int interval,
+-                                                       unsigned int counter)
+-{
+-    (void) sock;
+-    (void) time;
+-    (void) interval;
+-    (void) counter;
+-    return SOPC_STATUS_NOT_SUPPORTED;
+-}
+-
+-SOPC_ReturnStatus SOPC_Socket_Network_Disable_Keepalive(SOPC_Socket sock)
+-{
+-    (void) sock;
+-    return SOPC_STATUS_NOT_SUPPORTED;
+-}
+-
+-bool SOPC_Socket_Network_Initialize(void)
+-{
+-    bool status = true;
+-    int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
+-    if (result != 0)
+-    {
+-        status = false;
+-    }
+-    return status;
+-}
+-
+-bool SOPC_Socket_Network_Clear(void)
+-{
+-    bool status = true;
+-    int result = WSACleanup();
+-    if (result != 0)
+-    {
+-        status = false;
+-    }
+-    return status;
+-}
+-#include <stdio.h>
+-SOPC_ReturnStatus SOPC_Socket_AddrInfo_Get(const char* hostname, const char* port, SOPC_Socket_AddressInfo** addrs)
+-{
+-    SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
+-    SOPC_Socket_AddressInfo hints;
+-    memset(&hints, 0, sizeof(SOPC_Socket_AddressInfo));
+-    hints.addrInfo.ai_family = AF_UNSPEC; // AF_INET or AF_INET6  can be use to force IPV4 or IPV6
+-    hints.addrInfo.ai_socktype = SOCK_STREAM;
+-    hints.addrInfo.ai_flags = AI_PASSIVE;
+-
+-    struct addrinfo* getAddrInfoRes = NULL;
+-
+-    if ((hostname != NULL || port != NULL) && addrs != NULL)
+-    {
+-        if (getaddrinfo(hostname, port, &hints.addrInfo, &getAddrInfoRes) != 0)
+-        {
+-            SOPC_CONSOLE_PRINTF("ERROR: %d\n", getaddrinfo(hostname, port, &hints.addrInfo, &getAddrInfoRes));
+-            status = SOPC_STATUS_NOK;
+-        }
+-        else
+-        {
+-            *addrs = (SOPC_Socket_AddressInfo*) getAddrInfoRes;
+-            status = SOPC_STATUS_OK;
+-        }
+-    }
+-    return status;
+-}
+-
+-SOPC_Socket_AddressInfo* SOPC_Socket_AddrInfo_IterNext(SOPC_Socket_AddressInfo* addr)
+-{
+-    SOPC_Socket_AddressInfo* res = NULL;
+-    if (addr != NULL)
+-    {
+-        res = (SOPC_Socket_AddressInfo*) addr->addrInfo.ai_next;
+-    }
+-    return res;
+-}
+-
+-uint8_t SOPC_Socket_AddrInfo_IsIPV6(const SOPC_Socket_AddressInfo* addr)
+-{
+-    return addr->addrInfo.ai_family == PF_INET6;
+-}
+-
+-void SOPC_Socket_AddrInfoDelete(SOPC_Socket_AddressInfo** addrs)
+-{
+-    if (addrs != NULL)
+-    {
+-        freeaddrinfo(&(*addrs)->addrInfo);
+-        *addrs = NULL;
+-    }
+-}
+-
+-void SOPC_SocketAddress_Delete(SOPC_Socket_Address** addr)
+-{
+-    if (NULL == addr)
+-    {
+-        return;
+-    }
+-    if (NULL != *addr)
+-    {
+-        SOPC_Free((*addr)->address.ai_addr);
+-    }
+-    SOPC_Free(*addr);
+-    *addr = NULL;
+-}
+-
+-SOPC_Socket_Address* SOPC_Socket_CopyAddress(SOPC_Socket_AddressInfo* addr)
+-{
+-    SOPC_Socket_Address* result = SOPC_Calloc(1, sizeof(*result));
+-    if (NULL != result)
+-    {
+-        result->address.ai_addr = SOPC_Calloc(1, addr->addrInfo.ai_addrlen);
+-        result->address.ai_addrlen = addr->addrInfo.ai_addrlen;
+-        result->address.ai_family = addr->addrInfo.ai_family;
+-        if (NULL != result->address.ai_addr)
+-        {
+-            result->address.ai_addr =
+-                memcpy(result->address.ai_addr, addr->addrInfo.ai_addr, addr->addrInfo.ai_addrlen);
+-        }
+-        else
+-        {
+-            SOPC_Free(result);
+-            result = NULL;
+-        }
+-    }
+-    return result;
+-}
+-
+-SOPC_Socket_Address* SOPC_Socket_GetPeerAddress(SOPC_Socket sock)
+-{
+-    if (sock == SOPC_INVALID_SOCKET)
+-    {
+-        return NULL;
+-    }
+-    SOPC_Socket_Address* result = SOPC_Calloc(1, sizeof(*result));
+-    struct sockaddr_storage* sockAddrStorage = SOPC_Calloc(1, sizeof(*sockAddrStorage));
+-    socklen_t sockAddrStorageLen = sizeof(*sockAddrStorage);
+-    int res = -1;
+-    if (NULL != result && NULL != sockAddrStorage)
+-    {
+-        res = getpeername(sock->sock, (struct sockaddr*) sockAddrStorage, &sockAddrStorageLen);
+-        if (0 == res)
+-        {
+-            result->address.ai_family = sockAddrStorage->ss_family;
+-            result->address.ai_addrlen = sockAddrStorageLen;
+-            result->address.ai_addr = (struct sockaddr*) sockAddrStorage;
+-        }
+-    }
+-    if (res != 0)
+-    {
+-        SOPC_Free(sockAddrStorage);
+-        SOPC_Free(result);
+-        result = NULL;
+-    }
+-    return result;
+-}
+-
+-SOPC_ReturnStatus SOPC_SocketAddress_GetNameInfo(const SOPC_Socket_Address* addr, char** host, char** service)
+-{
+-    SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
+-    if (NULL == addr || (NULL == host && NULL == service))
+-    {
+-        return status;
+-    }
+-    int flags = 0;
+-    status = SOPC_STATUS_OK;
+-    char* hostRes = NULL;
+-    char* serviceRes = NULL;
+-    if (NULL != host)
+-    {
+-        flags |= NI_NUMERICHOST;
+-
+-        hostRes = SOPC_Calloc(NI_MAXHOST, sizeof(*hostRes));
+-        if (hostRes == NULL)
+-        {
+-            status = SOPC_STATUS_OUT_OF_MEMORY;
+-        }
+-    }
+-    if (SOPC_STATUS_OK == status && NULL != service)
+-    {
+-        flags |= NI_NUMERICSERV;
+-        serviceRes = SOPC_Calloc(NI_MAXSERV, sizeof(*serviceRes));
+-        if (serviceRes == NULL)
+-        {
+-            status = SOPC_STATUS_OUT_OF_MEMORY;
+-        }
+-    }
+-    if (SOPC_STATUS_OK == status)
+-    {
+-        int res = getnameinfo(addr->address.ai_addr, (socklen_t) addr->address.ai_addrlen, hostRes, NI_MAXHOST,
+-                              serviceRes, NI_MAXSERV, flags);
+-        if (0 != res)
+-        {
+-            status = SOPC_STATUS_NOK;
+-        }
+-    }
+-    if (SOPC_STATUS_OK != status)
+-    {
+-        SOPC_Free(hostRes);
+-        SOPC_Free(serviceRes);
+-    }
+-    else
+-    {
+-        if (NULL != host)
+-        {
+-            *host = hostRes;
+-        }
+-        if (NULL != service)
+-        {
+-            *service = serviceRes;
+-        }
+-    }
+-    return status;
+-}
+-
+-void SOPC_Socket_Clear(SOPC_Socket* sock)
+-{
+-    *sock = SOPC_INVALID_SOCKET;
+-}
+-
+-static SOPC_ReturnStatus Socket_Configure(SOCKET sock, bool setNonBlocking)
+-{
+-    SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
+-    const int trueInt = true;
+-    u_long ltrue = 1;
+-    int setOptStatus = -1;
+-    if (sock != INVALID_SOCKET)
+-    {
+-        status = SOPC_STATUS_OK;
+-        // Deactivate Nagle's algorithm since we always write a TCP UA binary message (and not just few bytes)
+-        setOptStatus = setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (const void*) &trueInt, sizeof(int));
+-
+-        /*
+-        if(setOptStatus != SOCKET_ERROR){
+-            int rcvbufsize = UINT16_MAX;
+-            setOptStatus = setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char*) &rcvbufsize, sizeof(int));
+-        }
+-
+-        if(setOptStatus != SOCKET_ERROR){
+-            int sndbufsize = UINT16_MAX;
+-            setOptStatus = setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char*) &sndbufsize, sizeof(int));
+-        }
+-        */
+-
+-        if (setOptStatus != SOCKET_ERROR && setNonBlocking != false)
+-        {
+-            setOptStatus = ioctlsocket(sock, (long) FIONBIO, &ltrue); // True => Non blocking
+-        }
+-
+-        if (setOptStatus == SOCKET_ERROR)
+-        {
+-            status = SOPC_STATUS_NOK;
+-        }
+-    }
+-
+-    return status;
+-}
+-
+-SOPC_ReturnStatus SOPC_Socket_CreateNew(SOPC_Socket_AddressInfo* addr,
+-                                        bool setReuseAddr,
+-                                        bool setNonBlocking,
+-                                        SOPC_Socket* sock)
+-{
+-    if (NULL == addr || NULL == sock)
+-    {
+-        return SOPC_STATUS_INVALID_PARAMETERS;
+-    }
+-    SOPC_Socket_Impl* socketImpl = SOPC_Calloc(1, sizeof(*socketImpl));
+-    if (NULL == socketImpl)
+-    {
+-        return SOPC_STATUS_OUT_OF_MEMORY;
+-    }
+-    SOPC_ReturnStatus status = SOPC_STATUS_NOK;
+-    const int trueInt = true;
+-    int setOptStatus = SOCKET_ERROR;
+-    status = SOPC_STATUS_OK;
+-    socketImpl->sock = socket(addr->addrInfo.ai_family, addr->addrInfo.ai_socktype, addr->addrInfo.ai_protocol);
+-    if (socketImpl->sock != INVALID_SOCKET)
+-    {
+-        status = Socket_Configure(socketImpl->sock, setNonBlocking);
+-
+-        if (status == SOPC_STATUS_OK)
+-        {
+-            setOptStatus = 0;
+-        } // else SOCKET_ERROR due to init
+-
+-        if (setOptStatus != SOCKET_ERROR && setReuseAddr != false)
+-        {
+-            setOptStatus = setsockopt(socketImpl->sock, SOL_SOCKET, SO_REUSEADDR, (const void*) &trueInt, sizeof(int));
+-        }
+-
+-        // Enforce IPV6 sockets can be used for IPV4 connections (if socket is IPV6)
+-        if (setOptStatus != SOCKET_ERROR && addr->addrInfo.ai_family == AF_INET6)
+-        {
+-            const int falseInt = false;
+-            setOptStatus =
+-                setsockopt(socketImpl->sock, IPPROTO_IPV6, IPV6_V6ONLY, (const void*) &falseInt, sizeof(int));
+-        }
+-    }
+-    if (setOptStatus == SOCKET_ERROR)
+-    {
+-        status = SOPC_STATUS_NOK;
+-    }
+-    if (SOPC_STATUS_OK == status)
+-    {
+-        *sock = socketImpl;
+-    }
+-    else
+-    {
+-        closesocket(socketImpl->sock);
+-        SOPC_Free(socketImpl);
+-        *sock = SOPC_INVALID_SOCKET;
+-    }
+-    return status;
+-}
+-
+-SOPC_ReturnStatus SOPC_Socket_Listen(SOPC_Socket sock, SOPC_Socket_AddressInfo* addr)
+-{
+-    if (SOPC_INVALID_SOCKET == sock)
+-    {
+-        return SOPC_STATUS_INVALID_PARAMETERS;
+-    }
+-    SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
+-    int bindListenStatus = -1;
+-    if (addr != NULL)
+-    {
+-        bindListenStatus = bind(sock->sock, addr->addrInfo.ai_addr, (int) addr->addrInfo.ai_addrlen);
+-        if (bindListenStatus != SOCKET_ERROR)
+-        {
+-            bindListenStatus = listen(sock->sock, SOMAXCONN);
+-        }
+-    }
+-    if (bindListenStatus != SOCKET_ERROR)
+-    {
+-        status = SOPC_STATUS_OK;
+-    }
+-    return status;
+-}
+-
+-SOPC_ReturnStatus SOPC_Socket_Accept(SOPC_Socket listeningSock, bool setNonBlocking, SOPC_Socket* acceptedSock)
+-{
+-    if (SOPC_INVALID_SOCKET == listeningSock || NULL == acceptedSock)
+-    {
+-        return SOPC_STATUS_INVALID_PARAMETERS;
+-    }
+-    SOPC_Socket_Impl* acceptedImpl = SOPC_Calloc(1, sizeof(*acceptedImpl));
+-    if (NULL == acceptedImpl)
+-    {
+-        return SOPC_STATUS_OUT_OF_MEMORY;
+-    }
+-    SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
+-    if (listeningSock->sock != INVALID_SOCKET)
+-    {
+-        acceptedImpl->sock = accept(listeningSock->sock, NULL, NULL);
+-        if (acceptedImpl->sock != INVALID_SOCKET)
+-        {
+-            status = Socket_Configure(acceptedImpl->sock, setNonBlocking);
+-        }
+-    }
+-    if (SOPC_STATUS_OK == status)
+-    {
+-        *acceptedSock = acceptedImpl;
+-    }
+-    else
+-    {
+-        SOPC_Socket_Close(&acceptedImpl);
+-    }
+-    return status;
+-}
+-
+-SOPC_ReturnStatus SOPC_Socket_Connect(SOPC_Socket sock, SOPC_Socket_AddressInfo* addr)
+-{
+-    SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
+-    int connectStatus = -1;
+-    int wsaError = 0;
+-    if (addr != NULL && sock != SOPC_INVALID_SOCKET)
+-    {
+-        connectStatus = connect(sock->sock, addr->addrInfo.ai_addr, (int) addr->addrInfo.ai_addrlen);
+-        if (connectStatus == SOCKET_ERROR)
+-        {
+-            wsaError = WSAGetLastError();
+-            if (wsaError == WSAEWOULDBLOCK)
+-            {
+-                // Non blocking connection started
+-                connectStatus = 0;
+-            }
+-        }
+-        if (connectStatus == 0)
+-        {
+-            status = SOPC_STATUS_OK;
+-        }
+-    }
+-    return status;
+-}
+-
+-SOPC_ReturnStatus SOPC_Socket_ConnectToLocal(SOPC_Socket from, SOPC_Socket to)
+-{
+-    SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
+-    SOPC_Socket_AddressInfo addr;
+-    struct sockaddr saddr;
+-    memset(&addr, 0, sizeof(SOPC_Socket_AddressInfo));
+-    memset(&saddr, 0, sizeof(struct sockaddr));
+-    addr.addrInfo.ai_addr = &saddr;
+-    addr.addrInfo.ai_addrlen = sizeof(struct sockaddr);
+-
+-    if (0 == getsockname(to->sock, addr.addrInfo.ai_addr, (int*) &addr.addrInfo.ai_addrlen))
+-    {
+-        status = SOPC_Socket_Connect(from, &addr);
+-    }
+-
+-    return status;
+-}
+-
+-SOPC_ReturnStatus SOPC_Socket_CheckAckConnect(SOPC_Socket sock)
+-{
+-    SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
+-    int error = 0;
+-    socklen_t len = sizeof(int);
+-    if (sock != SOPC_INVALID_SOCKET)
+-    {
+-        if (getsockopt(sock->sock, SOL_SOCKET, SO_ERROR, (char*) &error, &len) < 0 || error != 0)
+-        {
+-            status = SOPC_STATUS_NOK;
+-        }
+-        else
+-        {
+-            status = SOPC_STATUS_OK;
+-        }
+-    }
+-    return status;
+-}
+-
+-SOPC_SocketSet* SOPC_SocketSet_Create(void)
+-{
+-    SOPC_SocketSet* res = SOPC_Calloc(1, sizeof(SOPC_SocketSet));
+-    if (NULL != res)
+-    {
+-        SOPC_SocketSet_Clear(res);
+-    }
+-    return res;
+-}
+-
+-void SOPC_SocketSet_Delete(SOPC_SocketSet** set)
+-{
+-    if (NULL != set)
+-    {
+-        SOPC_Free(*set);
+-        *set = NULL;
+-    }
+-}
+-
+-void SOPC_SocketSet_Add(SOPC_Socket sock, SOPC_SocketSet* sockSet)
+-{
+-    if (sock != SOPC_INVALID_SOCKET && sockSet != NULL)
+-    {
+-        FD_SET(sock->sock, &sockSet->set);
+-    }
+-}
+-
+-bool SOPC_SocketSet_IsPresent(SOPC_Socket sock, SOPC_SocketSet* sockSet)
+-{
+-    if (sock != SOPC_INVALID_SOCKET && sockSet != NULL)
+-    {
+-        if (false == FD_ISSET(sock->sock, &sockSet->set))
+-        {
+-            return false;
+-        }
+-        else
+-        {
+-            return true;
+-        }
+-    }
+-    return false;
+-}
+-
+-void SOPC_SocketSet_Clear(SOPC_SocketSet* sockSet)
+-{
+-    if (sockSet != NULL)
+-    {
+-        FD_ZERO(&sockSet->set);
+-    }
+-}
+-
+-int32_t SOPC_Socket_WaitSocketEvents(SOPC_SocketSet* readSet,
+-                                     SOPC_SocketSet* writeSet,
+-                                     SOPC_SocketSet* exceptSet,
+-                                     uint32_t waitMs)
+-{
+-    int32_t nbReady = 0;
+-    const int ignored = 0; // ignored in winsocks
+-    struct timeval timeout;
+-    struct timeval* val;
+-
+-    if (waitMs == 0)
+-    {
+-        val = NULL;
+-    }
+-    else
+-    {
+-        if (waitMs / 1000 > LONG_MAX)
+-        {
+-            timeout.tv_sec = LONG_MAX;
+-        }
+-        else
+-        {
+-            timeout.tv_sec = (long) (waitMs / 1000);
+-        }
+-        if (1000 * (waitMs % 1000) > LONG_MAX)
+-        {
+-            timeout.tv_usec = LONG_MAX;
+-        }
+-        else
+-        {
+-            timeout.tv_usec = (long) (1000 * (waitMs % 1000));
+-        }
+-        val = &timeout;
+-    }
+-    nbReady = select(ignored, &readSet->set, &writeSet->set, &exceptSet->set, val);
+-    if (nbReady == SOCKET_ERROR || nbReady > INT32_MAX || nbReady < INT32_MIN)
+-        return -1;
+-    return (int32_t) nbReady;
+-}
+-
+-SOPC_ReturnStatus SOPC_Socket_Write(SOPC_Socket sock, const uint8_t* data, uint32_t count, uint32_t* sentBytes)
+-{
+-    SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
+-    int res = 0;
+-    int wsaError = 0;
+-    if (sock != SOPC_INVALID_SOCKET && data != NULL && count <= INT32_MAX && sentBytes != NULL)
+-    {
+-        status = SOPC_STATUS_NOK;
+-        res = send(sock->sock, (const char*) data, (int) count, 0);
+-        if (res >= 0)
+-        {
+-            /* MSDN send documentation indicates case res == 0 shall not occur in non blocking mode:
+-             * "If no buffer space is available within the transport system to hold the data to be transmitted, send
+-             * will block unless the socket has been placed in nonblocking mode. On nonblocking stream oriented sockets,
+-             * the number of bytes written can be between 1 and the requested length, depending on buffer availability
+-             * on both the client and server computers."
+-             * */
+-            *sentBytes = (uint32_t) res;
+-            status = SOPC_STATUS_OK;
+-        }
+-        else
+-        {
+-            *sentBytes = 0;
+-
+-            wsaError = WSAGetLastError();
+-            // ERROR CASE
+-            if (wsaError == WSAEWOULDBLOCK)
+-            {
+-                // Try again in those cases
+-                status = SOPC_STATUS_WOULD_BLOCK;
+-            } // keep SOPC_STATUS_NOK
+-        }
+-    }
+-    return status;
+-}
+-
+-SOPC_ReturnStatus SOPC_Socket_Read(SOPC_Socket sock, uint8_t* data, uint32_t dataSize, uint32_t* readCount)
+-{
+-    SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
+-    int res = 0;
+-    if (sock != SOPC_INVALID_SOCKET && data != NULL && dataSize > 0 && dataSize <= INT32_MAX && NULL != readCount)
+-    {
+-        res = recv(sock->sock, (char*) data, (int) dataSize, 0);
+-        if (res > 0)
+-        {
+-            *readCount = (uint32_t) res;
+-            status = SOPC_STATUS_OK;
+-        }
+-        else if (res == 0)
+-        {
+-            *readCount = 0;
+-            status = SOPC_STATUS_CLOSED;
+-        }
+-        else
+-        {
+-            *readCount = 0;
+-            if (WSAGetLastError() == WSAEWOULDBLOCK)
+-            {
+-                status = SOPC_STATUS_WOULD_BLOCK;
+-            }
+-        }
+-    }
+-    return status;
+-}
+-
+-SOPC_ReturnStatus SOPC_Socket_BytesToRead(SOPC_Socket sock, uint32_t* bytesToRead)
+-{
+-    SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
+-    u_long nbBytes = 0;
+-    if (sock != SOPC_INVALID_SOCKET && bytesToRead != NULL)
+-    {
+-        int res = ioctlsocket(sock->sock, FIONREAD, &nbBytes);
+-        if (res == 0)
+-        {
+-            if (nbBytes < UINT32_MAX)
+-            {
+-                *bytesToRead = (uint32_t) nbBytes;
+-            }
+-            else
+-            {
+-                *bytesToRead = UINT32_MAX;
+-            }
+-
+-            status = SOPC_STATUS_OK;
+-        }
+-        else
+-        {
+-            status = SOPC_STATUS_NOK;
+-        }
+-    }
+-    return status;
+-}
+-
+-void SOPC_Socket_Close(SOPC_Socket* sock)
+-{
+-    if (sock != NULL && *sock != SOPC_INVALID_SOCKET)
+-    {
+-        if (closesocket((*sock)->sock) != SOCKET_ERROR)
+-        {
+-            SOPC_Free(*sock);
+-            *sock = SOPC_INVALID_SOCKET;
+-        }
+-    }
+-}
++/*
++ * Licensed to Systerel under one or more contributor license
++ * agreements. See the NOTICE file distributed with this work
++ * for additional information regarding copyright ownership.
++ * Systerel licenses this file to you under the Apache
++ * License, Version 2.0 (the "License"); you may not use this
++ * file except in compliance with the License. You may obtain
++ * a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++
++
++ #include <winsock2.h>
++ #include <ws2tcpip.h>
++ #include <windows.h>
++ #include <stdint.h>
++ #include <string.h>
++ #include <io.h>
++ #include <errno.h>
++
++#ifndef MSG_NOSIGNAL
++    #define MSG_NOSIGNAL 0
++#endif
++
++#ifndef TCP_USER_TIMEOUT
++    #define TCP_USER_TIMEOUT 18  // Current value for windows, if supported
++#endif
++
++ #include "p_sopc_sockets.h"
++ 
++ #include "sopc_macros.h"
++ #include "sopc_mem_alloc.h"
++ #include "sopc_raw_sockets.h"
++ #include "sopc_threads.h"
++
++ #pragma comment(lib, "Ws2_32.lib")
++ 
++ #define SOPC_SECONDS_TO_MILLISECONDS 1000
++ 
++ SOPC_ReturnStatus SOPC_Socket_Network_Enable_Keepalive(SOPC_Socket sock,
++                                                        unsigned int firstProbeDelay,
++                                                        unsigned int interval,
++                                                        unsigned int counter)
++ {
++     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
++     const int trueInt = true;
++     int setOptStatus = -1;
++     /* Set to a value slightly lower than last keep alive transmission delay
++         to avoid potential cancellation */
++     unsigned int user_timeout = (firstProbeDelay + interval * counter - 1) * SOPC_SECONDS_TO_MILLISECONDS;
++ 
++     if (SOPC_INVALID_SOCKET == sock)
++     {
++         return status;
++     }
++ 
++     setOptStatus = setsockopt(sock->sock, SOL_SOCKET, SO_KEEPALIVE, (const void*) &trueInt, sizeof(int));
++ 
++     if (setOptStatus != -1)
++     {
++         setOptStatus =
++             setsockopt(sock->sock, IPPROTO_TCP, TCP_USER_TIMEOUT, (const void*) &user_timeout, sizeof(user_timeout));
++     }
++ 
++     if (setOptStatus != -1)
++     {
++         setOptStatus =
++             setsockopt(sock->sock, IPPROTO_TCP, TCP_KEEPIDLE, (const void*) &firstProbeDelay, sizeof(firstProbeDelay));
++     }
++ 
++     if (setOptStatus != -1)
++     {
++         setOptStatus = setsockopt(sock->sock, IPPROTO_TCP, TCP_KEEPINTVL, (const void*) &interval, sizeof(interval));
++     }
++ 
++     if (setOptStatus != -1)
++     {
++         setOptStatus = setsockopt(sock->sock, IPPROTO_TCP, TCP_KEEPCNT, (const void*) &counter, sizeof(counter));
++     }
++ 
++     if (setOptStatus < 0)
++     {
++         status = SOPC_STATUS_NOK;
++     }
++ 
++     return status;
++ }
++ 
++ SOPC_ReturnStatus SOPC_Socket_Network_Disable_Keepalive(SOPC_Socket sock)
++ {
++     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
++     const int falseInt = false;
++     const int zeroInt = 0;
++     int setOptStatus = -1;
++ 
++     if (SOPC_INVALID_SOCKET == sock)
++     {
++         return status;
++     }
++ 
++     setOptStatus = setsockopt(sock->sock, SOL_SOCKET, SO_KEEPALIVE, (const void*) &falseInt, sizeof(int));
++ 
++     if (setOptStatus != -1)
++     {
++         setOptStatus = setsockopt(sock->sock, IPPROTO_TCP, TCP_USER_TIMEOUT, (const void*) &zeroInt, sizeof(zeroInt));
++     }
++ 
++     if (setOptStatus < 0)
++     {
++         status = SOPC_STATUS_NOK;
++     }
++ 
++     return status;
++ }
++ 
++ bool SOPC_Socket_Network_Initialize(void)
++ {
++     return true;
++ }
++ 
++ bool SOPC_Socket_Network_Clear(void)
++ {
++     return true;
++ }
++ 
++ SOPC_ReturnStatus SOPC_Socket_AddrInfo_Get(const char* hostname, const char* port, SOPC_Socket_AddressInfo** addrs)
++ {
++     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
++     SOPC_Socket_AddressInfo hints;
++     memset(&hints, 0, sizeof(SOPC_Socket_AddressInfo));
++     hints.addrInfo.ai_family = AF_UNSPEC; // AF_INET or AF_INET6  can be use to force IPV4 or IPV6
++     hints.addrInfo.ai_socktype = SOCK_STREAM;
++     hints.addrInfo.ai_flags = AI_PASSIVE;
++ 
++     struct addrinfo* getAddrInfoRes = NULL;
++ 
++     if ((hostname != NULL || port != NULL) && addrs != NULL)
++     {
++         if (getaddrinfo(hostname, port, &hints.addrInfo, &getAddrInfoRes) != 0)
++         {
++             status = SOPC_STATUS_NOK;
++         }
++         else
++         {
++             *addrs = (SOPC_Socket_AddressInfo*) getAddrInfoRes;
++             status = SOPC_STATUS_OK;
++         }
++     }
++     return status;
++ }
++ 
++ SOPC_Socket_AddressInfo* SOPC_Socket_AddrInfo_IterNext(SOPC_Socket_AddressInfo* addr)
++ {
++     SOPC_Socket_AddressInfo* res = NULL;
++     if (addr != NULL)
++     {
++         res = (SOPC_Socket_AddressInfo*) addr->addrInfo.ai_next;
++     }
++     return res;
++ }
++ 
++ uint8_t SOPC_Socket_AddrInfo_IsIPV6(const SOPC_Socket_AddressInfo* addr)
++ {
++     return addr->addrInfo.ai_family == PF_INET6;
++ }
++ 
++ void SOPC_Socket_AddrInfoDelete(SOPC_Socket_AddressInfo** addrs)
++ {
++     if (addrs != NULL)
++     {
++         freeaddrinfo(&(*addrs)->addrInfo);
++         *addrs = NULL;
++     }
++ }
++ 
++ void SOPC_SocketAddress_Delete(SOPC_Socket_Address** addr)
++ {
++     if (NULL == addr)
++     {
++         return;
++     }
++     if (NULL != *addr)
++     {
++         SOPC_Free((*addr)->address.ai_addr);
++     }
++     SOPC_Free(*addr);
++     *addr = NULL;
++ }
++ 
++ SOPC_Socket_Address* SOPC_Socket_CopyAddress(SOPC_Socket_AddressInfo* addr)
++ {
++     SOPC_Socket_Address* result = SOPC_Calloc(1, sizeof(*result));
++     if (NULL != result)
++     {
++         result->address.ai_addr = SOPC_Calloc(1, addr->addrInfo.ai_addrlen);
++         result->address.ai_addrlen = addr->addrInfo.ai_addrlen;
++         result->address.ai_family = addr->addrInfo.ai_family;
++         if (NULL != result->address.ai_addr)
++         {
++             result->address.ai_addr =
++                 memcpy(result->address.ai_addr, addr->addrInfo.ai_addr, addr->addrInfo.ai_addrlen);
++         }
++         else
++         {
++             SOPC_Free(result);
++             result = NULL;
++         }
++     }
++     return result;
++ }
++ 
++ SOPC_Socket_Address* SOPC_Socket_GetPeerAddress(SOPC_Socket sock)
++ {
++     if (sock == SOPC_INVALID_SOCKET)
++     {
++         return NULL;
++     }
++     SOPC_Socket_Address* result = SOPC_Calloc(1, sizeof(*result));
++     struct sockaddr_storage* sockAddrStorage = SOPC_Calloc(1, sizeof(*sockAddrStorage));
++     socklen_t sockAddrStorageLen = sizeof(*sockAddrStorage);
++     int res = -1;
++     if (NULL != result && NULL != sockAddrStorage)
++     {
++         res = getpeername(sock->sock, (struct sockaddr*) sockAddrStorage, &sockAddrStorageLen);
++         if (0 == res)
++         {
++             result->address.ai_family = sockAddrStorage->ss_family;
++             result->address.ai_addrlen = sockAddrStorageLen;
++             result->address.ai_addr = (struct sockaddr*) sockAddrStorage;
++         }
++     }
++     if (res != 0)
++     {
++         SOPC_Free(sockAddrStorage);
++         SOPC_Free(result);
++         result = NULL;
++     }
++     return result;
++ }
++ 
++ SOPC_ReturnStatus SOPC_SocketAddress_GetNameInfo(const SOPC_Socket_Address* addr, char** host, char** service)
++ {
++     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
++     if (NULL == addr || (NULL == host && NULL == service))
++     {
++         return status;
++     }
++     int flags = 0;
++     status = SOPC_STATUS_OK;
++     char* hostRes = NULL;
++     char* serviceRes = NULL;
++     if (NULL != host)
++     {
++         flags |= NI_NUMERICHOST;
++ 
++         hostRes = SOPC_Calloc(NI_MAXHOST, sizeof(*hostRes));
++         if (hostRes == NULL)
++         {
++             status = SOPC_STATUS_OUT_OF_MEMORY;
++         }
++     }
++     if (SOPC_STATUS_OK == status && NULL != service)
++     {
++         flags |= NI_NUMERICSERV;
++         serviceRes = SOPC_Calloc(NI_MAXSERV, sizeof(*serviceRes));
++         if (serviceRes == NULL)
++         {
++             status = SOPC_STATUS_OUT_OF_MEMORY;
++         }
++     }
++     if (SOPC_STATUS_OK == status)
++     {
++         int res = getnameinfo(addr->address.ai_addr, (socklen_t) addr->address.ai_addrlen, hostRes, NI_MAXHOST, serviceRes,
++                                NI_MAXSERV, flags);
++         if (0 != res)
++         {
++             status = SOPC_STATUS_NOK;
++         }
++     }
++     if (SOPC_STATUS_OK != status)
++     {
++         SOPC_Free(hostRes);
++         SOPC_Free(serviceRes);
++     }
++     else
++     {
++         if (NULL != host)
++         {
++             *host = hostRes;
++         }
++         if (NULL != service)
++         {
++             *service = serviceRes;
++         }
++     }
++     return status;
++ }
++ 
++ void SOPC_Socket_Clear(SOPC_Socket* sock)
++ {
++     *sock = SOPC_INVALID_SOCKET;
++ }
++ 
++ static SOPC_ReturnStatus Socket_Configure(int sock, bool setNonBlocking)
++ {
++     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
++     const int trueInt = true;
++     int setOptStatus = -1;
++ 
++     if (sock != -1)
++     {
++         status = SOPC_STATUS_OK;
++ 
++         // Deactivate Nagle's algorithm since we always write a TCP UA binary message (and not just few bytes)
++         setOptStatus = setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (const void*) &trueInt, sizeof(int));
++        
++         if (setOptStatus != -1 && setNonBlocking != false)
++         {
++            u_long mode = 1;
++            setOptStatus = ioctlsocket(sock, FIONBIO, &mode);
++        }
++ 
++         if (setOptStatus < 0)
++         {
++             status = SOPC_STATUS_NOK;
++         }
++     }
++ 
++     return status;
++ }
++ 
++ SOPC_ReturnStatus SOPC_Socket_CreateNew(SOPC_Socket_AddressInfo* addr,
++                                         bool setReuseAddr,
++                                         bool setNonBlocking,
++                                         SOPC_Socket* sock)
++ {
++     if (NULL == addr || NULL == sock)
++     {
++         return SOPC_STATUS_INVALID_PARAMETERS;
++     }
++     SOPC_Socket_Impl* socketImpl = SOPC_Calloc(1, sizeof(*socketImpl));
++     if (NULL == socketImpl)
++     {
++         return SOPC_STATUS_OUT_OF_MEMORY;
++     }
++     SOPC_ReturnStatus status = SOPC_STATUS_NOK;
++     const int trueInt = true;
++     int setOptStatus = -1;
++ 
++     socketImpl->sock = socket(addr->addrInfo.ai_family, addr->addrInfo.ai_socktype, addr->addrInfo.ai_protocol);
++     if (socketImpl->sock < 0)
++     {
++         SOPC_Free(socketImpl);
++         return SOPC_STATUS_NOK;
++     }
++     status = Socket_Configure((int)socketImpl->sock, setNonBlocking);
++ 
++     if (SOPC_STATUS_OK == status)
++     {
++         setOptStatus = 0;
++     } // else -1 due to init
++ 
++     if (setOptStatus != -1 && setReuseAddr != false)
++     {
++         setOptStatus = setsockopt(socketImpl->sock, SOL_SOCKET, SO_REUSEADDR, (const void*) &trueInt, sizeof(int));
++     }
++ 
++     // Enforce IPV6 sockets can be used for IPV4 connections (if socket is IPV6)
++     if (setOptStatus != -1 && addr->addrInfo.ai_family == AF_INET6)
++     {
++         const int falseInt = false;
++         setOptStatus = setsockopt(socketImpl->sock, IPPROTO_IPV6, IPV6_V6ONLY, (const void*) &falseInt, sizeof(int));
++     }
++ 
++     if (setOptStatus < 0)
++     {
++         status = SOPC_STATUS_NOK;
++     }
++     if (SOPC_STATUS_OK == status)
++     {
++         *sock = socketImpl;
++     }
++     else
++     {
++        int res = -1;
++        // S2OPC_TEMP_FAILURE_RETRY(res, close(socketImpl->sock));
++        S2OPC_TEMP_FAILURE_RETRY(res, closesocket(socketImpl->sock));
++        SOPC_Free(socketImpl);
++        *sock = SOPC_INVALID_SOCKET;
++     }
++     return status;
++ }
++ 
++ SOPC_ReturnStatus SOPC_Socket_Listen(SOPC_Socket sock, SOPC_Socket_AddressInfo* addr)
++ {
++     if (SOPC_INVALID_SOCKET == sock)
++     {
++         return SOPC_STATUS_INVALID_PARAMETERS;
++     }
++     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
++     int bindListenStatus = -1;
++     if (addr != NULL)
++     {
++         bindListenStatus = bind(sock->sock, addr->addrInfo.ai_addr, (int)addr->addrInfo.ai_addrlen);
++         if (bindListenStatus != -1)
++         {
++             bindListenStatus = listen(sock->sock, SOMAXCONN);
++         }
++     }
++     if (bindListenStatus != -1)
++     {
++         status = SOPC_STATUS_OK;
++     }
++     return status;
++ }
++ 
++ SOPC_ReturnStatus SOPC_Socket_Accept(SOPC_Socket listeningSock, bool setNonBlocking, SOPC_Socket* acceptedSock)
++ {
++     if (SOPC_INVALID_SOCKET == listeningSock || NULL == acceptedSock)
++     {
++         return SOPC_STATUS_INVALID_PARAMETERS;
++     }
++     SOPC_Socket_Impl* acceptedImpl = SOPC_Calloc(1, sizeof(*acceptedImpl));
++     if (NULL == acceptedImpl)
++     {
++         return SOPC_STATUS_OUT_OF_MEMORY;
++     }
++     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
++     struct sockaddr remoteAddr;
++     socklen_t addrLen = sizeof(remoteAddr);
++     if (listeningSock->sock != -1)
++     {
++         S2OPC_TEMP_FAILURE_RETRY(acceptedImpl->sock, accept(listeningSock->sock, &remoteAddr, &addrLen));
++         //        SOPC_CONSOLE_PRINTF("selectserver: new connection from %s on socket %d\n",
++         //                inet_ntop(remoteaddr.sa_family,
++         //                    get_in_addr((struct sockaddr*)&remoteaddr),
++         //                    remoteIP, INET6_ADDRSTRLEN),
++         //                acceptSock);
++         if (acceptedImpl->sock != -1)
++         {
++             status = Socket_Configure((int)acceptedImpl->sock, setNonBlocking);
++         }
++     }
++     if (SOPC_STATUS_OK == status)
++     {
++         *acceptedSock = acceptedImpl;
++     }
++     else
++     {
++         //SOPC_Socket_Close(&acceptedImpl);
++         closesocket(acceptedImpl->sock);
++     }
++     return status;
++ }
++ 
++ SOPC_ReturnStatus SOPC_Socket_Connect(SOPC_Socket sock, SOPC_Socket_AddressInfo* addr)
++ {
++     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
++     int connectStatus = -1;
++     if (addr != NULL && sock != SOPC_INVALID_SOCKET)
++     {
++         S2OPC_TEMP_FAILURE_RETRY(connectStatus, connect(sock->sock, addr->addrInfo.ai_addr, (int)addr->addrInfo.ai_addrlen));
++         if (connectStatus < 0)
++         {
++             if (errno == EINPROGRESS)
++             {
++                 // Non blocking connection started
++                 connectStatus = 0;
++             }
++         }
++         if (connectStatus == 0)
++         {
++             status = SOPC_STATUS_OK;
++         }
++     }
++     return status;
++ }
++ 
++ SOPC_ReturnStatus SOPC_Socket_ConnectToLocal(SOPC_Socket from, SOPC_Socket to)
++ {
++     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
++     SOPC_Socket_AddressInfo addr;
++     struct sockaddr saddr;
++     memset(&addr, 0, sizeof(SOPC_Socket_AddressInfo));
++     memset(&saddr, 0, sizeof(struct sockaddr));
++     addr.addrInfo.ai_addr = &saddr;
++     addr.addrInfo.ai_addrlen = sizeof(struct sockaddr);
++
++     int addrlen = (int)addr.addrInfo.ai_addrlen;
++ 
++    //  if (0 == getsockname(to->sock, addr.addrInfo.ai_addr, &addr.addrInfo.ai_addrlen))
++    if (0 == getsockname(to->sock, addr.addrInfo.ai_addr, &addrlen))
++     {
++         status = SOPC_Socket_Connect(from, &addr);
++     }
++ 
++     return status;
++ }
++ 
++ SOPC_ReturnStatus SOPC_Socket_CheckAckConnect(SOPC_Socket sock)
++ {
++     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
++     int error = 0;
++     socklen_t len = sizeof(int);
++     if (sock != SOPC_INVALID_SOCKET)
++     {
++         if (getsockopt(sock->sock, SOL_SOCKET, SO_ERROR, (char*)&error, &len) < 0 || error != 0)
++         {
++             status = SOPC_STATUS_NOK;
++         }
++         else
++         {
++             status = SOPC_STATUS_OK;
++         }
++     }
++     return status;
++ }
++ 
++ SOPC_SocketSet* SOPC_SocketSet_Create(void)
++ {
++     SOPC_SocketSet* res = SOPC_Calloc(1, sizeof(SOPC_SocketSet));
++     if (NULL != res)
++     {
++         SOPC_SocketSet_Clear(res);
++     }
++     return res;
++ }
++ 
++ void SOPC_SocketSet_Delete(SOPC_SocketSet** set)
++ {
++     if (NULL != set)
++     {
++         SOPC_Free(*set);
++         *set = NULL;
++     }
++ }
++ 
++ void SOPC_SocketSet_Add(SOPC_Socket sock, SOPC_SocketSet* sockSet)
++ {
++     if (sock != SOPC_INVALID_SOCKET && sockSet != NULL)
++     {
++         FD_SET(sock->sock, &sockSet->set);
++         if (sock->sock > sockSet->fdmax)
++         {
++             sockSet->fdmax = (int)sock->sock;
++         }
++     }
++ }
++ 
++ bool SOPC_SocketSet_IsPresent(SOPC_Socket sock, SOPC_SocketSet* sockSet)
++ {
++     if (sock != SOPC_INVALID_SOCKET && sockSet != NULL)
++     {
++         if (false == FD_ISSET(sock->sock, &sockSet->set))
++         {
++             return false;
++         }
++         else
++         {
++             return true;
++         }
++     }
++     return false;
++ }
++ 
++ void SOPC_SocketSet_Clear(SOPC_SocketSet* sockSet)
++ {
++     if (sockSet != NULL)
++     {
++         FD_ZERO(&sockSet->set);
++         sockSet->fdmax = 0;
++     }
++ }
++ 
++ int32_t SOPC_Socket_WaitSocketEvents(SOPC_SocketSet* readSet,
++                                      SOPC_SocketSet* writeSet,
++                                      SOPC_SocketSet* exceptSet,
++                                      uint32_t waitMs)
++ {
++     int32_t nbReady = 0;
++     struct timeval timeout;
++     struct timeval* val;
++     int fdmax = 0;
++     if (readSet->fdmax > writeSet->fdmax)
++     {
++         fdmax = readSet->fdmax;
++     }
++     else
++     {
++         fdmax = writeSet->fdmax;
++     }
++     if (exceptSet->fdmax > fdmax)
++     {
++         fdmax = exceptSet->fdmax;
++     }
++ 
++     if (waitMs == 0)
++     {
++         val = NULL;
++     }
++     else
++     {
++        timeout.tv_sec = (time_t)(waitMs / 1000);
++        //  timeout.tv_usec = (suseconds_t)(1000 * (waitMs % 1000)); //posix
++        timeout.tv_usec = (long)(1000 * (waitMs % 1000));
++        val = &timeout;
++     }
++     S2OPC_TEMP_FAILURE_RETRY(nbReady, select(fdmax + 1, &readSet->set, &writeSet->set, &exceptSet->set, val));
++     return (int32_t) nbReady;
++ }
++ 
++ SOPC_ReturnStatus SOPC_Socket_Write(SOPC_Socket sock, const uint8_t* data, uint32_t count, uint32_t* sentBytes)
++ {
++     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
++     size_t res = 0;
++     if (sock != SOPC_INVALID_SOCKET && data != NULL && count <= INT32_MAX && sentBytes != NULL)
++     {
++         status = SOPC_STATUS_NOK;
++         /* Don't generate a SIGPIPE signal if the peer on a stream-
++               oriented socket has closed the connection. */
++         S2OPC_TEMP_FAILURE_RETRY(res, send(sock->sock, data, count, MSG_NOSIGNAL));
++ 
++         if (res >= 0)
++         {
++             status = SOPC_STATUS_OK;
++             *sentBytes = (uint32_t) res;
++         }
++         else
++         {
++             *sentBytes = 0;
++ 
++             // ERROR CASE
++ #if EWOULDBLOCK == EAGAIN
++             if ((EAGAIN == errno))
++ #else
++             if ((EAGAIN == errno) || (EWOULDBLOCK == errno))
++ #endif
++             {
++                 // Try again in those cases
++                 status = SOPC_STATUS_WOULD_BLOCK;
++             } // else: error, keep SOPC_STATUS_NOK
++         }
++     }
++     return status;
++ }
++ 
++ SOPC_ReturnStatus SOPC_Socket_Read(SOPC_Socket sock, uint8_t* data, uint32_t dataSize, uint32_t* readCount)
++ {
++     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
++     size_t sReadCount = 0;
++     if (sock != SOPC_INVALID_SOCKET && data != NULL && dataSize > 0 && NULL != readCount)
++     {
++         S2OPC_TEMP_FAILURE_RETRY(sReadCount, recv(sock->sock, data, dataSize, 0));
++ 
++         /* Extract of man recv (release 3.54 of the Linux man-pages project):
++          * RETURN VALUE
++          * These calls return the number of bytes received, or -1 if an error occurred.  In the event of an error,
++          * errno is set to indicate the error.  The return value will be 0 when the peer has performed  an orderly
++          * shutdown. */
++ 
++         if (sReadCount > 0)
++         {
++             *readCount = (uint32_t) sReadCount;
++             status = SOPC_STATUS_OK;
++         }
++         else if (sReadCount == 0)
++         {
++             *readCount = 0;
++             status = SOPC_STATUS_CLOSED;
++         }
++         else if (sReadCount == -1)
++         {
++             *readCount = 0;
++ 
++             /* Extract of man recv (release 3.54 of the Linux man-pages project):
++              * If  no  messages  are available at the socket, the receive calls wait for a message to arrive, unless the
++              * socket is onblocking (see fcntl(2)), in which case the value -1 is returned and the external variable
++              * errno is set to EAGAIN or  WOULDBLOCK.  The receive calls normally return any data available, up to the
++              * requested amount, rather than waiting for receipt of the full amount requested.*/
++ 
++ #if EWOULDBLOCK == EAGAIN
++             if ((EAGAIN == errno))
++ #else
++             if ((EAGAIN == errno) || (EWOULDBLOCK == errno))
++ #endif
++             {
++                 status = SOPC_STATUS_WOULD_BLOCK;
++             }
++         }
++         else
++         {
++             status = SOPC_STATUS_NOK;
++         }
++     }
++     return status;
++ }
++ 
++ SOPC_ReturnStatus SOPC_Socket_BytesToRead(SOPC_Socket sock, uint32_t* bytesToRead)
++ {
++     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
++     int nbBytes = 0;
++     if (sock != SOPC_INVALID_SOCKET && bytesToRead != NULL)
++     {
++         int res = 0;
++         //S2OPC_TEMP_FAILURE_RETRY(res, ioctl(sock->sock, FIONREAD, &nbBytes));
++         S2OPC_TEMP_FAILURE_RETRY(res, ioctlsocket(sock->sock, FIONREAD, (u_long*) &nbBytes));
++         if (res == 0 && nbBytes >= 0)
++         {
++             if ((uint64_t) nbBytes < UINT32_MAX)
++             {
++                 *bytesToRead = (uint32_t) nbBytes;
++             }
++             else
++             {
++                 *bytesToRead = UINT32_MAX;
++             }
++ 
++             status = SOPC_STATUS_OK;
++         }
++         else
++         {
++             status = SOPC_STATUS_NOK;
++         }
++     }
++     return status;
++ }
++ 
++ void SOPC_Socket_Close(SOPC_Socket* sock)
++ {
++     if (sock != NULL && *sock != SOPC_INVALID_SOCKET)
++     {
++         int res = 0;
++         //S2OPC_TEMP_FAILURE_RETRY(res, close((*sock)->sock));
++         S2OPC_TEMP_FAILURE_RETRY(res, closesocket((*sock)->sock));
++         if (res != -1)
++         {
++             SOPC_Free(*sock);
++             *sock = SOPC_INVALID_SOCKET;
++         }
++     }
++ }
++ 
+\ No newline at end of file
+diff --git a/src/Common/helpers_platform_dep/windows/p_sopc_sockets.h b/src/Common/helpers_platform_dep/windows/p_sopc_sockets.h
+index 7d0dda229..d9a1f81db 100644
+--- a/src/Common/helpers_platform_dep/windows/p_sopc_sockets.h
++++ b/src/Common/helpers_platform_dep/windows/p_sopc_sockets.h
+@@ -58,6 +58,7 @@ struct SOPC_Socket_Address
+  */
+ struct SOPC_SocketSet
+ {
++    int fdmax;  /**< max of the set */
+     fd_set set; /**< set */
+ };
+ 
+diff --git a/src/Common/helpers_platform_dep/windows/p_sopc_threads.c b/src/Common/helpers_platform_dep/windows/p_sopc_threads.c
+index 975115b60..1d03c6b42 100644
+--- a/src/Common/helpers_platform_dep/windows/p_sopc_threads.c
++++ b/src/Common/helpers_platform_dep/windows/p_sopc_threads.c
+@@ -29,6 +29,22 @@
+ 
+ typedef HRESULT(WINAPI* pSetThreadDescription)(HANDLE, PCWSTR);
+ 
++SOPC_ReturnStatus SOPC_Thread_Create(SOPC_Thread* thread,
++    void* (*startFct)(void*),
++    void* startArgs,
++    const char* taskName);
++
++SOPC_ReturnStatus SOPC_Thread_CreatePrioritized(SOPC_Thread* thread,
++    void* (*startFct)(void*),
++    void* startArgs,
++    int priority,
++    const char* taskName)
++{
++// Windows doesn't support SCHED_FIFO or real time priority in a simple manner
++(void) priority; // remove warning
++return SOPC_Thread_Create(thread, startFct, startArgs, taskName);
++}
++
+ SOPC_ReturnStatus SOPC_Condition_Init(SOPC_Condition* cond)
+ {
+     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
+diff --git a/src/Common/helpers_platform_dep/windows/p_sopc_udp_sockets.c b/src/Common/helpers_platform_dep/windows/p_sopc_udp_sockets.c
+new file mode 100644
+index 000000000..3bc7c2399
+--- /dev/null
++++ b/src/Common/helpers_platform_dep/windows/p_sopc_udp_sockets.c
+@@ -0,0 +1,473 @@
++#ifdef _WIN32
++#include "p_sopc_sockets.h"
++#include "sopc_udp_sockets.h"
++#include "sopc_assert.h"
++
++#include <windows.h>
++#include <winsock2.h>
++#include <ws2tcpip.h>
++#include <mswsock.h>
++#include <stdlib.h>  // Pour malloc/free
++#include <stdio.h>
++#include <string.h>  // Pour memset
++
++#define DEFAULT_TTL 32u
++#pragma comment(lib, "Ws2_32.lib")
++
++static int gInitialized = 0;
++static WSADATA wsaData;
++
++#define PRINT_DEBUG printf  // Activation du debug
++
++void SOPC_UDP_Socket_Close(SOPC_Socket* sock);
++
++
++static inline void Network_Initialize(void)
++{
++    if (!gInitialized)
++    {
++        WSAStartup(MAKEWORD(2, 2), &wsaData);
++        gInitialized = 1;
++    }
++}
++
++static inline void Network_Clear(void)
++{
++    WSACleanup();
++}
++
++static SOPC_ReturnStatus SOPC_UDP_Socket_AddrInfo_Get(int IPv6, const char* node, const char* port, SOPC_Socket_AddressInfo** addrs)
++{
++    SOPC_Socket_AddressInfo hints;
++    memset(&hints, 0, sizeof(SOPC_Socket_AddressInfo));
++    hints.addrInfo.ai_family= (IPv6 ? AF_INET6 : AF_INET);
++    hints.addrInfo.ai_socktype = SOCK_DGRAM;
++    hints.addrInfo.ai_flags = AI_PASSIVE;
++    hints.addrInfo.ai_protocol = IPPROTO_UDP;
++
++    if ((node != NULL || port != NULL) && addrs != NULL)
++    {
++        int rc = getaddrinfo(node, port, (struct addrinfo*) &hints, (struct addrinfo**) addrs);
++        if (rc != 0)
++        {
++            PRINT_DEBUG("Invalid address %s, getaddrinfo failed: %s(%d)\n", node, gai_strerrorA(rc), rc);
++            return SOPC_STATUS_NOK;
++        }
++        return SOPC_STATUS_OK;
++    }
++    return SOPC_STATUS_INVALID_PARAMETERS;
++}
++
++#include "sopc_mem_alloc.h"
++
++
++// SOPC_SocketSet* SOPC_SocketSet_Create(void)
++// {
++//     SOPC_SocketSet* res = SOPC_Calloc(1, sizeof(SOPC_SocketSet));
++//     if (NULL != res)
++//     {
++//         SOPC_SocketSet_Clear(res);
++//     }
++//     return res;
++// }
++
++// void SOPC_SocketSet_Delete(SOPC_SocketSet** set)
++// {
++//     if (NULL != set)
++//     {
++//         SOPC_Free(set);
++//     }
++// }
++
++SOPC_Socket_AddressInfo* SOPC_UDP_SocketAddress_Create(bool IPv6, const char* node, const char* service)
++{
++    Network_Initialize();
++    SOPC_Socket_AddressInfo* addr = NULL;
++    SOPC_ReturnStatus status = SOPC_UDP_Socket_AddrInfo_Get(IPv6, node, service, &addr);
++    return (status == SOPC_STATUS_OK) ? addr : NULL;
++}
++
++void SOPC_UDP_SocketAddress_Delete(SOPC_Socket_AddressInfo** addr)
++{
++    if (addr && *addr)
++    {
++        free(*addr);
++        *addr = NULL;
++    }
++}
++
++//younes
++//SOPC_ReturnStatus SOPC_UDP_Socket_Set_MulticastTTL(SOCKET sock, uint8_t TTL_scope)
++SOPC_ReturnStatus SOPC_UDP_Socket_Set_MulticastTTL(SOPC_Socket pSock, uint8_t TTL_scope)
++{
++    int optlen = sizeof(TTL_scope);
++
++    if (pSock->sock != INVALID_SOCKET)
++    {
++        PRINT_DEBUG("setsockopt(%d, IPPROTO_IP, IP_MULTICAST_TTL, (%d))\n", (int)pSock->sock, TTL_scope);
++        int setOptStatus = setsockopt(pSock->sock, IPPROTO_IP, IP_MULTICAST_TTL, (const char*)&TTL_scope, optlen);
++        return (setOptStatus == SOCKET_ERROR) ? SOPC_STATUS_NOK : SOPC_STATUS_OK;
++    }
++    return SOPC_STATUS_INVALID_PARAMETERS;
++}
++
++static SOPC_ReturnStatus SOPC_UDP_Socket_CreateNew(const SOPC_Socket_AddressInfo* addr, const char* interfaceName, int setReuseAddr, int setNonBlocking, SOCKET* sock)
++{
++    if (addr == NULL || sock == NULL)
++        return SOPC_STATUS_INVALID_PARAMETERS;
++
++    *sock = socket(addr->addrInfo.ai_family, addr->addrInfo.ai_socktype, addr->addrInfo.ai_protocol);
++    PRINT_DEBUG("socket(SND) => %llu \n", (unsigned long long) *sock);
++
++    if (*sock == INVALID_SOCKET)
++        return SOPC_STATUS_NOK;
++
++    if (setReuseAddr)
++    {
++        int trueInt = 1;
++        setsockopt(*sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&trueInt, sizeof(int));
++    }
++
++    return SOPC_STATUS_OK;
++}
++
++static void* get_ai_addr(const SOPC_Socket_AddressInfo* addr)
++{
++
++    return (void*)addr->addrInfo.ai_addr;
++}
++
++static int JoinMulticastGroup(SOCKET s, const struct addrinfo* group, struct addrinfo* iface)
++{
++    struct ip_mreq mreqv4;
++    char* optval = NULL;
++    int optlevel, option, optlen, rc;
++
++    rc = NO_ERROR;
++    if (group->ai_family == AF_INET)
++    {
++        optlevel = IPPROTO_IP;
++        option = IP_ADD_MEMBERSHIP;
++        optval = (char*)&mreqv4;
++        optlen = sizeof(mreqv4);
++
++        mreqv4.imr_multiaddr.s_addr = ((SOCKADDR_IN*)group->ai_addr)->sin_addr.s_addr;
++        mreqv4.imr_interface.s_addr = ((SOCKADDR_IN*)iface->ai_addr)->sin_addr.s_addr;
++    }
++    else
++    {
++        fprintf(stderr, "Attempting to join multicast group for invalid address family!\n");
++        rc = SOCKET_ERROR;
++    }
++
++    if (rc != SOCKET_ERROR)
++    {
++        PRINT_DEBUG("setsockopt(%d, IPPROTO_IP, IP_ADD_MEMBERSHIP, ...)\n", (int)s);
++        rc = setsockopt(s, optlevel, option, optval, optlen);
++        if (rc == SOCKET_ERROR)
++        {
++            PRINT_DEBUG("JoinMulticastGroup: setsockopt failed with error code %d\n", WSAGetLastError());
++        }
++    }
++    return rc;
++}
++
++int SetSendInterface(SOCKET s, struct addrinfo* iface)
++{
++    char* optval = NULL;
++    int optlevel, option, optlen, rc;
++    rc = NO_ERROR;
++
++    if (iface->ai_family == AF_INET)
++    {
++        optlevel = IPPROTO_IP;
++        option = IP_MULTICAST_IF;
++        optval = (char*)&((SOCKADDR_IN*)iface->ai_addr)->sin_addr.s_addr;
++        optlen = sizeof(((SOCKADDR_IN*)iface->ai_addr)->sin_addr.s_addr);
++    }
++    else
++    {
++        fprintf(stderr, "Attempting to set sent interface for invalid address family!\n");
++        rc = SOCKET_ERROR;
++    }
++
++    if (rc != SOCKET_ERROR)
++    {
++        const SOCKADDR_IN* inaddr = (SOCKADDR_IN*)(iface->ai_addr);
++
++        PRINT_DEBUG("setsockopt(%d, IPPROTO_IP, IP_MULTICAST_IF, %d.%d.%d.%d:%d)\n", 
++            (int)s,
++            inaddr->sin_addr.S_un.S_un_b.s_b1,
++            inaddr->sin_addr.S_un.S_un_b.s_b2,
++            inaddr->sin_addr.S_un.S_un_b.s_b3,
++            inaddr->sin_addr.S_un.S_un_b.s_b4,
++            (int)htons(inaddr->sin_port));
++        rc = setsockopt(s, optlevel, option, optval, optlen);
++        if (rc == SOCKET_ERROR)
++        {
++            PRINT_DEBUG("setsockopt() failed with error code %d\n", WSAGetLastError());
++        }
++    }
++    return rc;
++}
++
++struct addrinfo* ResolveAddress(const char* addr, const char* port, int af, int type, int proto)
++{
++    struct addrinfo hints, * res = NULL;
++    int rc;
++
++    memset(&hints, 0, sizeof(hints));
++    hints.ai_flags = ((addr) ? 0 : AI_PASSIVE);
++    hints.ai_family = af;
++    hints.ai_socktype = type;
++    hints.ai_protocol = proto;
++
++    rc = getaddrinfo(addr, port, &hints, &res);
++    if (rc != 0)
++    {
++        PRINT_DEBUG("Invalid address %s, getaddrinfo failed: %d\n", addr, rc);
++        return NULL;
++    }
++    return res;
++}
++
++// static SOPC_ReturnStatus SOPC_UDP_Socket_CreateNew(const SOPC_Socket_AddressInfo* addr, const char* interfaceName, int setReuseAddr, int setNonBlocking, SOPC_Socket* pSock)
++// {
++//     SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
++//     const int trueInt = 1;
++//     int setOptStatus = -1;
++//     if (addr != NULL && pSock != NULL)
++//     {
++//         SOPC_Socket result = (SOPC_Socket)malloc(sizeof(*result));
++//         SOPC_ASSERT(result != NULL);
++//         result->sock = socket(addr->addrInfo.ai_family, addr->addrInfo.ai_socktype, addr->addrInfo.ai_protocol);
++//         PRINT_DEBUG("socket(SND) => %llu \n", result->sock);
++
++//         if (result->sock == INVALID_SOCKET)
++//         {
++//             status = SOPC_STATUS_NOK;
++//         }
++//         else
++//         {
++//             status = SOPC_STATUS_OK;
++//         }
++
++//         if (status == SOPC_STATUS_OK && setReuseAddr)
++//         {
++//             PRINT_DEBUG("setsockopt(%d, SOL_SOCKET, SO_REUSEADDR,..) \n", (int) result->sock);
++//             setOptStatus = setsockopt(result->sock, SOL_SOCKET, SO_REUSEADDR, (const void*) &trueInt, sizeof(int));
++//             if (setOptStatus < 0)
++//             {
++//                 status = SOPC_STATUS_NOK;
++//             }
++//         }
++
++//         SOPC_UDP_Socket_Set_MulticastTTL(result, DEFAULT_TTL);
++
++//         if (interfaceName != NULL)
++//         {
++//             struct addrinfo hints;
++//             struct addrinfo* res, * tmp;
++//             char host[256];
++
++//             memset(&hints, 0, sizeof(struct addrinfo));
++//             hints.ai_family = AF_INET;
++
++//             int ret = getaddrinfo(interfaceName, NULL, &hints, &res);
++//             if (ret != 0) {
++//                 fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(ret));
++//             }
++//             else
++//             {
++//                 for (tmp = res; tmp != NULL; tmp = tmp->ai_next) {
++//                     getnameinfo(tmp->ai_addr, (socklen_t)tmp->ai_addrlen, host, sizeof(host), NULL, 0, NI_NUMERICHOST);
++//                     puts(host);
++//                 }
++
++//                 freeaddrinfo(res);
++//             }
++//         }
++//     }
++//     return status;
++// }
++
++SOPC_ReturnStatus SOPC_UDP_Socket_CreateToReceive(SOPC_Socket_AddressInfo* listenAddress,
++    const char* interfaceName,
++    bool setReuseAddr,
++    bool setNonBlocking,
++    SOPC_Socket* pSock)
++{
++SOCKET        s;
++SOCKADDR_IN    localif;
++struct ip_mreq mreq;
++
++struct sockaddr_in* listenAddr;
++
++s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
++
++*pSock = malloc(sizeof(SOPC_Socket_Impl));
++
++if (pSock == NULL)
++{
++    closesocket(s);
++    return SOPC_STATUS_OUT_OF_MEMORY;
++}
++
++
++PRINT_DEBUG("socket(RCV) => %lld \n", s);
++
++listenAddr = (struct sockaddr_in*)get_ai_addr(listenAddress);
++
++localif.sin_family = AF_INET;
++localif.sin_port = listenAddr->sin_port;
++localif.sin_addr.s_addr = htonl(INADDR_ANY);
++
++int res = bind(s, (SOCKADDR*)&localif, sizeof(localif));
++PRINT_DEBUG("bind(%d, %d.%d.%d.%d:%d)\n", (int)s,
++localif.sin_addr.S_un.S_un_b.s_b4,
++localif.sin_addr.S_un.S_un_b.s_b3,
++localif.sin_addr.S_un.S_un_b.s_b2,
++localif.sin_addr.S_un.S_un_b.s_b1,
++(int)htons(localif.sin_port));
++
++if (res == SOCKET_ERROR)
++{
++PRINT_DEBUG("Failed to Bind socket %d on port %d (%s)\n", (int) (*pSock)->sock, htons(localif.sin_port), gai_strerrorA(WSAGetLastError()));
++SOPC_UDP_Socket_Close(pSock);
++
++return SOPC_STATUS_NOK;
++}
++
++// Note: only add membership if socket is a Multicast address
++bool isMC = listenAddress->addrInfo.ai_family == AF_INET;
++if (isMC)
++{
++// IPV4: first address byte indicates if this is a multicast address
++struct sockaddr_in* sAddr = (struct sockaddr_in*)get_ai_addr(listenAddress);
++const uint32_t ip = htonl(sAddr->sin_addr.s_addr);
++isMC = ((ip >> 28) & 0xF) == 0xE; // Multicast mask on 4 first bytes;
++}
++
++if (isMC)
++{
++    PRINT_DEBUG("Detected a Multicast address. Set option 'IP_ADD_MEMBERSHIP'\n");
++
++    struct in_addr interfaceAddr;
++    int ptonResult = inet_pton(AF_INET, interfaceName, &interfaceAddr);
++    if (ptonResult != 1)
++    {
++        PRINT_DEBUG("inet_pton failed for interfaceName: %s\n", interfaceName);
++        closesocket(s);
++        return SOPC_STATUS_INVALID_PARAMETERS;
++    }
++
++    mreq.imr_interface = interfaceAddr;
++    mreq.imr_multiaddr = listenAddr->sin_addr;
++
++PRINT_DEBUG("setsockopt(%d, IPPROTO_IP, IP_ADD_MEMBERSHIP, (%s / %d.%d.%d.%d:%d))\n",
++(int) s,
++interfaceName,
++listenAddr->sin_addr.S_un.S_un_b.s_b4,
++listenAddr->sin_addr.S_un.S_un_b.s_b3,
++listenAddr->sin_addr.S_un.S_un_b.s_b2,
++listenAddr->sin_addr.S_un.S_un_b.s_b1,
++htons(listenAddr->sin_port));
++res = setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq));
++if (res == SOCKET_ERROR)
++{
++PRINT_DEBUG("Failed to IP_ADD_MEMBERSHIP on socket %d  (%s)\n", (int) (*pSock)->sock, gai_strerrorA(WSAGetLastError()));
++SOPC_UDP_Socket_Close(pSock);
++return SOPC_STATUS_NOK;
++}
++}
++
++//*sock = s;
++(*pSock)->sock =s;
++return SOPC_STATUS_OK;
++}
++
++
++
++    
++SOPC_ReturnStatus SOPC_UDP_Socket_CreateToSend(SOPC_Socket_AddressInfo* destAddress, const char* interfaceName, bool setNonBlocking, SOPC_Socket* pSock)
++{
++
++    if (pSock == NULL)
++    {
++        return SOPC_STATUS_INVALID_PARAMETERS;
++    }
++    *pSock = malloc(sizeof(SOPC_Socket_Impl));
++
++    if (pSock == NULL)
++    {
++        return SOPC_STATUS_OUT_OF_MEMORY;
++    }
++    return SOPC_UDP_Socket_CreateNew(destAddress, interfaceName, 0, setNonBlocking, &(*pSock)->sock);
++    
++}
++
++
++//SOPC_ReturnStatus SOPC_UDP_Socket_SendTo(SOCKET sock, const SOPC_Socket_AddressInfo* destAddr, SOPC_Buffer* buffer)
++SOPC_ReturnStatus SOPC_UDP_Socket_SendTo(SOPC_Socket pSock, const SOPC_Socket_AddressInfo* destAddr, SOPC_Buffer* buffer)
++{
++    //if (sock == INVALID_SOCKET || destAddr == NULL || buffer == NULL || buffer->position != 0)
++    if (pSock->sock == INVALID_SOCKET || destAddr == NULL || buffer == NULL || buffer->position != 0)
++    {
++        return SOPC_STATUS_INVALID_PARAMETERS;
++    }
++
++    const SOCKADDR_IN* inaddr = (SOCKADDR_IN*)(destAddr->addrInfo.ai_addr);
++    PRINT_DEBUG("sendto(%d, (...), %u, to (%d.%d.%d.%d:%d))\n", 
++        (int)pSock->sock, (int)buffer->length, 
++        inaddr->sin_addr.S_un.S_un_b.s_b1,
++        inaddr->sin_addr.S_un.S_un_b.s_b2,
++        inaddr->sin_addr.S_un.S_un_b.s_b3,
++        inaddr->sin_addr.S_un.S_un_b.s_b4,
++        htons(inaddr->sin_port));
++    int res = sendto(pSock->sock, (const char*)buffer->data, buffer->length, 0, destAddr->addrInfo.ai_addr, (int)destAddr->addrInfo.ai_addrlen);
++
++    if (res == SOCKET_ERROR || (uint32_t) res != buffer->length)
++    {
++        return SOPC_STATUS_NOK;
++    }
++
++    return SOPC_STATUS_OK;
++}
++
++SOPC_ReturnStatus SOPC_UDP_Socket_ReceiveFrom(SOPC_Socket pSock, SOPC_Buffer* buffer)
++{
++    if (pSock->sock == INVALID_SOCKET || buffer == NULL)
++    {
++        return SOPC_STATUS_INVALID_PARAMETERS;
++    }
++
++    struct sockaddr_in si_client;
++    socklen_t slen = sizeof(si_client);
++
++    int recv_len = recvfrom(pSock->sock, (char*)buffer->data, buffer->current_size, 0, (struct sockaddr*)&si_client, &slen);
++
++    if (recv_len == SOCKET_ERROR)
++    {
++        return SOPC_STATUS_NOK;
++    }
++
++    buffer->length = (uint32_t) recv_len;
++    if (buffer->length == buffer->current_size)
++    {
++        return SOPC_STATUS_OUT_OF_MEMORY;
++    }
++
++    return SOPC_STATUS_OK;
++}
++
++ void SOPC_UDP_Socket_Close(SOPC_Socket* pSock)
++ {
++    //  if (sock && *sock != INVALID_SOCKET)
++     if (pSock != NULL && *pSock != NULL && (*pSock)->sock && (*pSock)->sock != INVALID_SOCKET)
++  {
++         closesocket((*pSock)->sock);
++         (*pSock)->sock = INVALID_SOCKET;
++     }
++ }
++
++#endif
+\ No newline at end of file
+diff --git a/src/PubSub/publisher/sopc_pub_scheduler.c b/src/PubSub/publisher/sopc_pub_scheduler.c
+index d7a2f1ef4..6bf15346b 100644
+--- a/src/PubSub/publisher/sopc_pub_scheduler.c
++++ b/src/PubSub/publisher/sopc_pub_scheduler.c
+@@ -1041,7 +1041,7 @@ static bool SOPC_PubScheduler_Connection_Get_Transport(uint32_t index,
+ {
+     const char* address = SOPC_PubSubConnection_Get_Address(connection);
+     SOPC_PubSubProtocol_Type protocol = SOPC_PubSub_Protocol_From_URI(address);
+-    SOPC_Socket outSock;
++    SOPC_Socket outSock = NULL;
+     SOPC_Socket_AddressInfo* outUDPaddr = NULL;
+     bool allocSuccess = false;
+     size_t hostnameLength = 0;
+diff --git a/tests/PubSub/CMakeLists.txt b/tests/PubSub/CMakeLists.txt
+index 7edbf959e..138a933f0 100644
+--- a/tests/PubSub/CMakeLists.txt
++++ b/tests/PubSub/CMakeLists.txt
+@@ -138,6 +138,11 @@ target_compile_options(pub_scheduler_test PRIVATE ${S2OPC_COMPILER_FLAGS})
+ target_compile_definitions(pub_scheduler_test PRIVATE ${S2OPC_DEFINITIONS})
+ target_link_libraries(pub_scheduler_test PRIVATE s2opc_pubsub)
+ 
++add_executable(udp_latency_test "validation_tests/udp_latency_test.c")
++target_compile_options(udp_latency_test PRIVATE ${S2OPC_COMPILER_FLAGS})
++target_compile_definitions(udp_latency_test PRIVATE ${S2OPC_DEFINITIONS})
++target_link_libraries(udp_latency_test PRIVATE s2opc_pubsub)
++
+ # Copy data
+ add_custom_command(
+   TARGET pub_scheduler_test POST_BUILD
+@@ -264,10 +269,17 @@ endif()
+ 
+ ## S2OPC PubSub interoperability tests ##
+ 
++# ${CMAKE_CURRENT_SOURCE_DIR}/helpers_platform_dep/windows/
++# add_executable(interop_sub_test
++#   "interop_tests/interop_sub_test.c"
++#   "${CMAKE_CURRENT_SOURCE_DIR}/helpers_platform_dep/windows/sopc_sockets.c"
++# )
++# target_link_libraries(interop_sub_test PRIVATE s2opc_pubsub s2opc_common)
+ add_executable(interop_sub_test "interop_tests/interop_sub_test.c")
+ target_compile_options(interop_sub_test PRIVATE ${S2OPC_COMPILER_FLAGS})
+ target_compile_definitions(interop_sub_test PRIVATE ${S2OPC_DEFINITIONS})
+-target_link_libraries(interop_sub_test PRIVATE s2opc_pubsub)
++target_link_libraries(interop_sub_test PRIVATE s2opc_pubsub  )
++
+ 
+ if(UNIX)
+ 
+diff --git a/tests/PubSub/data/config_pub_scheduler.xml b/tests/PubSub/data/config_pub_scheduler.xml
+index 1cac753da..5e31985f7 100644
+--- a/tests/PubSub/data/config_pub_scheduler.xml
++++ b/tests/PubSub/data/config_pub_scheduler.xml
+@@ -1,24 +1,21 @@
+-<PubSub xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="s2opc_pubsub_config.xsd">
+-    <!-- one to many -->
+-    <connection address="opc.udp://232.1.2.100:4840" mode="publisher" publisherId="i=123">
+-        <message publishingInterval="50." groupId="14" groupVersion="1">
+-            <!-- one to many -->
+-            <dataset writerId="50">
+-                <!-- one to many -->
+-                <variable nodeId="ns=1;i=5" displayName="Toto" dataType="Boolean"/>
+-            </dataset>
+-            <dataset writerId="51">
+-                <!-- one to many -->
+-                <variable nodeId="ns=2;i=6" displayName="Titi" dataType="UInt32"/>
+-                <variable nodeId="ns=2;i=7" displayName="Tutu" dataType="UInt16"/>
+-            </dataset>
+-        </message>
+-        <message publishingInterval="30." groupId="15">
+-            <!-- one to many -->
+-            <dataset writerId="52">
+-                <!-- one to many -->
+-                <variable nodeId="ns=1;i=2" displayName="Tata" dataType="Int16"/>
++<?xml version="1.0" encoding="UTF-8"?>
++<PubSub xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++        xsi:noNamespaceSchemaLocation="s2opc_pubsub_config.xsd">
++
++    <connection address="opc.udp://232.1.2.100:4840"
++                mode="publisher"
++                publisherId="i=123"
++                interfaceName="10.51.140.223">
++
++        <message publishingInterval="100." groupId="1245" groupVersion="963852">
++            <dataset writerId="123">
++                <variable nodeId="ns=1;i=1" displayName="ts_us" dataType="UInt64"/>
++                <variable nodeId="ns=1;i=2" displayName="flag" dataType="Byte"/>
++                <variable nodeId="ns=1;i=3" displayName="code" dataType="UInt16"/>
++                <variable nodeId="ns=1;i=4" displayName="date" dataType="DateTime"/>
++                <variable nodeId="ns=1;i=5" displayName="latval" dataType="UInt32"/>
+             </dataset>
+         </message>
++
+     </connection>
+ </PubSub>
+diff --git a/tests/PubSub/unit_tests/pubsub_modules_test.c b/tests/PubSub/unit_tests/pubsub_modules_test.c
+index 886b40037..efa2abf35 100644
+--- a/tests/PubSub/unit_tests/pubsub_modules_test.c
++++ b/tests/PubSub/unit_tests/pubsub_modules_test.c
+@@ -1236,6 +1236,7 @@ static SOPC_TargetVariableCtx* getGlobalTargetVariable(const SOPC_Conf_Publisher
+     {
+         // Should not go there
+         ck_assert(false);
++        return NULL;
+     }
+ }
+ 
+diff --git a/tests/PubSub/validation_tests/ReadMe b/tests/PubSub/validation_tests/ReadMe
+new file mode 100644
+index 000000000..8f6cd9db5
+--- /dev/null
++++ b/tests/PubSub/validation_tests/ReadMe
+@@ -0,0 +1,90 @@
++OPC UA PubSub Latency Test (UDP + UADP)
++✅ Goal
++
++This test aims to evaluate how well a Windows system handles periodic communication using the OPC UA PubSub model over UDP multicast, with UADP encoding.
++The main objective is to determine whether Windows can sustain low-latency transmission at a fixed rate (e.g., 100 ms), and whether it is suitable for near real-time tasks.
++
++🧪 Test Setup
++
++1 Publisher (udp_pub_test.c)
++1 Subscriber (udp_latency_test.c)
++
++Both running on the same machine
++Communication is one-way only (Pub → Sub)
++Messages are sent over multicast UDP
++
++🔁 Flow Diagram
++
+++----------------+                        +----------------+
++|                |   Multicast UDP (UADP) |                |
++|   Publisher    |----------------------->|   Subscriber   |
++| (udp_pub_test) |   232.1.2.100:4840     | (udp_latency)  |
++|                |                        |                |
+++----------------+                        +----------------+
++📦 Data Structure
++
++Each published UADP message contains 5 fields encoded as Variants:
++
++Field #	    Type	    Description
++0	        UInt64	    Timestamp in microseconds (since boot)
++1	        Byte	    Dummy value
++2	        UInt16	    Dummy value
++3	        DateTime	Current UTC time
++4	        UInt32	    Dummy value
++
++The subscriber only uses Field 0 to calculate the latency:
++latency = current_time_us - received_timestamp
++
++
++🕓 Timing Parameters
++
++Parameter	            Value
++Publish Interval	    Every 100 ms
++Timestamp Precision	    Microseconds
++Network Protocol        UDP Multicast
++Multicast Address	    232.1.2.100
++Port	                4840
++Interface (Rx)	        10.51.140.223
++UADP Message Type	    KeyFrame
++Sequence Numbers	    Enabled
++
++📈 Output Example
++
++Latency: 0 us
++Latency: 0 us
++Latency: 16 us
++Latency: 0 us
++
++CSV Log (latency_log.csv)
++
++timestamp,latency_us
++2778765,0
++2778875,0
++2779750,16
++2781343,0
++...
++This allows for post-analysis of timing and jitter.
++
++🧠 What This Test Tells You
++-Verifies that the Publisher sends at a fixed interval (100 ms)
++-Measures the time between Publisher timestamp and Subscriber reception
++-Detects latency anomalies (spikes, jitter)
++-Helps validate deterministic timing behavior on Windows
++
++⚠️ Limitations
++-Not a network latency test (no NIC-to-NIC path)
++-No hardware timestamping (since both apps run on same OS)
++-Windows is not a real-time OS – jitter may happen
++
++Wireshark is not reliable in this setup because TX and RX occur locally
++
++
++
++
++
++
++
++
++
++
++
+diff --git a/tests/PubSub/validation_tests/multicast_listener.c b/tests/PubSub/validation_tests/multicast_listener.c
+new file mode 100644
+index 000000000..00be88ae4
+--- /dev/null
++++ b/tests/PubSub/validation_tests/multicast_listener.c
+@@ -0,0 +1,77 @@
++// udp_multicast_listener.c
++#define _WINSOCK_DEPRECATED_NO_WARNINGS
++#include <stdio.h>
++#include <winsock2.h>
++#include <ws2tcpip.h>
++
++#pragma comment(lib, "ws2_32.lib")
++
++#define MCAST_ADDR "232.1.2.100"
++#define MCAST_PORT 4840
++#define LOCAL_INTERFACE "10.51.140.223"
++#define BUFFER_SIZE 4096
++
++int main(void)
++{
++    WSADATA wsaData;
++    SOCKET sock;
++    struct sockaddr_in localAddr;
++    struct ip_mreq mreq;
++    char buffer[BUFFER_SIZE];
++    int ret;
++
++    WSAStartup(MAKEWORD(2, 2), &wsaData);
++
++    sock = socket(AF_INET, SOCK_DGRAM, 0);
++    if (sock == INVALID_SOCKET)
++    {
++        perror("socket");
++        return 1;
++    }
++
++    // Bind to local address/port
++    memset(&localAddr, 0, sizeof(localAddr));
++    localAddr.sin_family = AF_INET;
++    localAddr.sin_port = htons(MCAST_PORT);
++    localAddr.sin_addr.s_addr = htonl(INADDR_ANY);
++
++    if (bind(sock, (struct sockaddr*)&localAddr, sizeof(localAddr)) < 0)
++    {
++        perror("bind");
++        return 1;
++    }
++
++    // Join multicast group on specified interface
++    mreq.imr_multiaddr.s_addr = inet_addr(MCAST_ADDR);
++    mreq.imr_interface.s_addr = inet_addr(LOCAL_INTERFACE);
++
++    if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) < 0)
++    {
++        perror("setsockopt IP_ADD_MEMBERSHIP");
++        return 1;
++    }
++
++    printf("Listening for multicast on %s:%d\n", MCAST_ADDR, MCAST_PORT);
++
++    while (1)
++    {
++        ret = recv(sock, buffer, BUFFER_SIZE, 0);
++        if (ret < 0)
++        {
++            perror("recv");
++            break;
++        }
++
++        printf("Received %d bytes: ", ret);
++        for (int i = 0; i < ret; ++i)
++        {
++            printf("%02X ", (unsigned char)buffer[i]);
++        }
++        printf("\n");
++    }
++
++    closesocket(sock);
++    WSACleanup();
++
++    return 0;
++}
+diff --git a/tests/PubSub/validation_tests/udp_latency_test.c b/tests/PubSub/validation_tests/udp_latency_test.c
+new file mode 100644
+index 000000000..3005b6e32
+--- /dev/null
++++ b/tests/PubSub/validation_tests/udp_latency_test.c
+@@ -0,0 +1,192 @@
++// udp_latency_test.c
++// OPC UA PubSub latency logger (subscriber with UADP config)
++
++#include <stdio.h>
++#include <stdint.h>
++#include <inttypes.h>
++#include <string.h>
++#include <time.h>
++
++#include "sopc_assert.h"
++#include "sopc_atomic.h"
++#include "sopc_date_time.h"
++#include "sopc_logger.h"
++#include "sopc_macros.h"
++#include "sopc_network_layer.h"
++#include "sopc_reader_layer.h"
++#include "sopc_sub_sockets_mgr.h"
++#include "sopc_threads.h"
++#include "sopc_time_reference.h"
++#include "sopc_udp_sockets.h"
++#include "sopc_helper_endianness_cfg.h"
++#include "sopc_dataset_ll_layer.h"
++
++#define MCAST_PORT "4840"
++#define MCAST_ADDR "232.1.2.100"
++#define LOCAL_INTERFACE "10.51.140.223"
++#define LOG_FILE "latency_log.csv"
++#define CTX_VALUE (uintptr_t) 1
++#define MAX_BUFFER_SIZE 4096
++
++static SOPC_Buffer* buffer = NULL;
++static int32_t stop = 0;
++static FILE* logFile = NULL;
++static SOPC_PubSubConfiguration* configuration = NULL;
++static SOPC_PubSubConnection* subConnection = NULL;
++
++static void setup_connection(void)
++{
++    configuration = SOPC_PubSubConfiguration_Create();
++    SOPC_ASSERT(configuration != NULL);
++
++    SOPC_PubSubConfiguration_Allocate_SubConnection_Array(configuration, 1);
++    subConnection = SOPC_PubSubConfiguration_Get_SubConnection_At(configuration, 0);
++
++    SOPC_PubSubConnection_Allocate_ReaderGroup_Array(subConnection, 1);
++    SOPC_ReaderGroup* group = SOPC_PubSubConnection_Get_ReaderGroup_At(subConnection, 0);
++
++    SOPC_ReaderGroup_Set_SecurityMode(group, SOPC_SecurityMode_None);
++    SOPC_ReaderGroup_Allocate_DataSetReader_Array(group, 1);
++    SOPC_DataSetReader* reader = SOPC_ReaderGroup_Get_DataSetReader_At(group, 0);
++
++    SOPC_ReaderGroup_Set_GroupId(group, 1245);
++    SOPC_ReaderGroup_Set_GroupVersion(group, 963852);
++    SOPC_ReaderGroup_Set_PublisherId_UInteger(group, 123);
++
++    SOPC_DataSetReader_Set_DataSetWriterId(reader, 123);
++    SOPC_DataSetReader_Allocate_FieldMetaData_Array(reader, SOPC_TargetVariablesDataType, 5);
++
++    SOPC_PubSub_ArrayDimension dim = { .valueRank = -1, .arrayDimensions = NULL };
++    SOPC_FieldMetaData* meta = NULL;
++
++    // Timestamp (uint64)
++    meta = SOPC_DataSetReader_Get_FieldMetaData_At(reader, 0);
++    SOPC_FieldMetaData_ArrayDimension_Move(meta, &dim);
++    SOPC_FieldMetaData_Set_BuiltinType(meta, SOPC_UInt64_Id);
++
++    // Byte
++    meta = SOPC_DataSetReader_Get_FieldMetaData_At(reader, 1);
++    SOPC_FieldMetaData_ArrayDimension_Move(meta, &dim);
++    SOPC_FieldMetaData_Set_BuiltinType(meta, SOPC_Byte_Id);
++
++    // UInt16
++    meta = SOPC_DataSetReader_Get_FieldMetaData_At(reader, 2);
++    SOPC_FieldMetaData_ArrayDimension_Move(meta, &dim);
++    SOPC_FieldMetaData_Set_BuiltinType(meta, SOPC_UInt16_Id);
++
++    // DateTime
++    meta = SOPC_DataSetReader_Get_FieldMetaData_At(reader, 3);
++    SOPC_FieldMetaData_ArrayDimension_Move(meta, &dim);
++    SOPC_FieldMetaData_Set_BuiltinType(meta, SOPC_DateTime_Id);
++
++    // UInt32
++    meta = SOPC_DataSetReader_Get_FieldMetaData_At(reader, 4);
++    SOPC_FieldMetaData_ArrayDimension_Move(meta, &dim);
++    SOPC_FieldMetaData_Set_BuiltinType(meta, SOPC_UInt32_Id);
++}
++
++static void log_latency(uint64_t sentTime)
++{
++    // Get actual time since start of the system
++    uint64_t now_us = SOPC_TimeReference_GetCurrent();
++
++    // Calculate latency between sending and reception
++    int64_t latency_us = (int64_t)(now_us - sentTime);
++
++    // Write in log file: current time, latency in us
++    fprintf(logFile, "%" PRIu64 ",%" PRId64 "\n", now_us, latency_us);
++    fflush(logFile);
++
++    // Print latency in console as well
++    printf("Latency: %" PRId64 " us\n", latency_us);
++
++    // Alert if latency > 6 ms
++    if (latency_us > 6000000)
++    {
++        printf("[WARN] Latency too high: %" PRId64 " us\n", latency_us);
++    }
++}
++
++static void readyToReceive(void* ctx, SOPC_Socket sock)
++{
++    SOPC_UNUSED_ARG(ctx);
++    if (SOPC_Atomic_Int_Get(&stop)) return;
++
++    SOPC_ReturnStatus status = SOPC_UDP_Socket_ReceiveFrom(sock, buffer);
++    if (status == SOPC_STATUS_OK && buffer->length > 1)
++    {
++        const SOPC_UADP_NetworkMessage_Reader_Configuration readerConf = {
++            .pGetSecurity_Func = NULL,
++            .callbacks = SOPC_Reader_NetworkMessage_Default_Readers,
++            .checkDataSetMessageSN_Func = NULL,
++            .updateTimeout_Func = NULL,
++            .targetConfig = NULL,
++            .targetVariable_Func = NULL
++        };
++
++        SOPC_UADP_NetworkMessage* uadp_nm = NULL;
++        SOPC_NetworkMessage_Error_Code decodeResult = SOPC_UADP_NetworkMessage_Decode(
++            buffer, &readerConf, subConnection, &uadp_nm);
++
++        if (decodeResult == SOPC_NetworkMessage_Error_Code_None && uadp_nm && uadp_nm->nm)
++        {
++            SOPC_Dataset_LL_DataSetMessage* dsm = SOPC_Dataset_LL_NetworkMessage_Get_DataSetMsg_At(uadp_nm->nm, 0);
++            if (dsm)
++            {
++                const SOPC_Variant* field = SOPC_Dataset_LL_DataSetMsg_Get_Variant_At(dsm, 0);
++                if (field && field->BuiltInTypeId == SOPC_UInt64_Id && field->ArrayType == SOPC_VariantArrayType_SingleValue)
++                {
++                    log_latency(field->Value.Uint64);
++                }
++            }
++            SOPC_UADP_NetworkMessage_Delete(uadp_nm);
++        }
++    }
++    SOPC_Buffer_SetPosition(buffer, 0);
++}
++
++static void tick(void* tickCtx)
++{
++    SOPC_ASSERT(CTX_VALUE == (uintptr_t) tickCtx);
++}
++
++int main(void)
++{
++    printf("Starting udp_latency_test (subscriber)\n");
++    SOPC_Socket sock;
++    SOPC_Socket_AddressInfo* listenAddr = SOPC_UDP_SocketAddress_Create(false, MCAST_ADDR, MCAST_PORT);
++    buffer = SOPC_Buffer_Create(MAX_BUFFER_SIZE);
++
++    logFile = fopen(LOG_FILE, "w");
++    if (!logFile)
++    {
++        perror("Cannot open log file");
++        return -1;
++    }
++    fprintf(logFile, "timestamp,latency_ms\n");
++
++    SOPC_Helper_Endianness_Check();
++    setup_connection();
++
++    SOPC_ReturnStatus status = SOPC_UDP_Socket_CreateToReceive(listenAddr, LOCAL_INTERFACE, true, true, &sock);
++
++    if (status == SOPC_STATUS_OK)
++    {
++        SOPC_Sub_Sockets_Timeout timeout = { .callback = &tick, .pContext = (void*) CTX_VALUE, .period_ms = 1000 };
++        SOPC_Sub_SocketsMgr_Initialize(NULL, 0, &sock, 1, readyToReceive, &timeout, 0);
++    }
++
++    while (status == SOPC_STATUS_OK && !SOPC_Atomic_Int_Get(&stop))
++    {
++        SOPC_Sleep(100);
++    }
++
++    SOPC_Sub_SocketsMgr_Clear();
++    fclose(logFile);
++    SOPC_Buffer_Delete(buffer);
++    SOPC_UDP_Socket_Close(&sock);
++    SOPC_UDP_SocketAddress_Delete(&listenAddr);
++    SOPC_PubSubConfiguration_Delete(configuration);
++
++    return 0;
++}
+diff --git a/tests/PubSub/validation_tests/udp_pub_test.c b/tests/PubSub/validation_tests/udp_pub_test.c
+index 75c47cf78..8a7c48067 100644
+--- a/tests/PubSub/validation_tests/udp_pub_test.c
++++ b/tests/PubSub/validation_tests/udp_pub_test.c
+@@ -28,6 +28,7 @@
+ #include "sopc_network_layer.h"
+ #include "sopc_threads.h"
+ #include "sopc_udp_sockets.h"
++#include "sopc_time_reference.h" 
+ 
+ #define MCAST_PORT "4840"
+ #define MCAST_ADDR "232.1.2.100"
+@@ -55,7 +56,7 @@ static SOPC_Dataset_LL_NetworkMessage* UDP_Pub_Test_Get_NetworkMessage(void)
+     SOPC_Dataset_LL_DataSetMessage* dsm = SOPC_Dataset_LL_NetworkMessage_Get_DataSetMsg_At(nm, 0);
+     SOPC_Dataset_LL_NetworkMessage_SetVersion(header, 1);
+     SOPC_Dataset_LL_DataSetMsg_Allocate_DataSetField_Array(dsm, 5);
+-    SOPC_Dataset_LL_NetworkMessage_Set_PublisherId_UInt32(header, 15300);
++    SOPC_Dataset_LL_NetworkMessage_Set_PublisherId_UInt32(header, 123);
+     SOPC_Dataset_LL_NetworkMessage_Set_GroupId(nm, 1245);
+     SOPC_Dataset_LL_NetworkMessage_Set_GroupVersion(nm, 963852);
+     SOPC_Dataset_LL_DataSetMsg_Set_WriterId(dsm, 123);
+@@ -75,10 +76,17 @@ static SOPC_Dataset_LL_NetworkMessage* UDP_Pub_Test_Get_NetworkMessage(void)
+     SOPC_Dataset_LL_DataSetMsg_Set_EnableEmission(dsm, true);
+     SOPC_Variant variant;
+     // variant 1
++    // SOPC_Variant_Initialize(&variant);
++    // variant.BuiltInTypeId = SOPC_UInt32_Id;
++    // variant.ArrayType = SOPC_VariantArrayType_SingleValue;
++    // variant.Value.Uint32 = 12071982;
++
++    // variant 1 — send timestamp in µs (SOPC_TimeReference)
+     SOPC_Variant_Initialize(&variant);
+-    variant.BuiltInTypeId = SOPC_UInt32_Id;
++    variant.BuiltInTypeId = SOPC_UInt64_Id;
+     variant.ArrayType = SOPC_VariantArrayType_SingleValue;
+-    variant.Value.Uint32 = 12071982;
++    variant.Value.Uint64 = SOPC_TimeReference_GetCurrent();
++
+     bool res = SOPC_Dataset_LL_DataSetMsg_Set_DataSetField_Variant_At(dsm, &variant, 0);
+     SOPC_ASSERT(res);
+ 
+@@ -149,9 +157,34 @@ int main(void)
+     {
+         while (SOPC_STATUS_OK == status && SOPC_Atomic_Int_Get(&stopPublisher) == false)
+         {
++            // status = SOPC_UDP_Socket_SendTo(sock, multicastAddr, buffer);
++            // SOPC_ASSERT(SOPC_STATUS_OK == status);
++            // SOPC_Sleep(100);
++            //Update Time stamp
++            SOPC_Variant variant;
++            SOPC_Variant_Initialize(&variant);
++            variant.BuiltInTypeId = SOPC_UInt64_Id;
++            variant.ArrayType = SOPC_VariantArrayType_SingleValue;
++            variant.Value.Uint64 = SOPC_TimeReference_GetCurrent();
++            SOPC_Dataset_LL_DataSetMsg_Set_DataSetField_Variant_At(
++                SOPC_Dataset_LL_NetworkMessage_Get_DataSetMsg_At(nm, 0),
++                &variant,
++                0);
++
++            //Regenerate buffer
++            buffer = NULL;
++            buffer_payload = NULL;
++            errorCode = SOPC_UADP_NetworkMessage_Encode_Buffers(nm, NULL, &buffer, &buffer_payload);
++            SOPC_ASSERT(SOPC_NetworkMessage_Error_Code_None == errorCode);
++            errorCode = SOPC_UADP_NetworkMessage_BuildFinalMessage(NULL, buffer, &buffer_payload);
++            SOPC_ASSERT(SOPC_NetworkMessage_Error_Code_None == errorCode);
++
++            //Send
+             status = SOPC_UDP_Socket_SendTo(sock, multicastAddr, buffer);
++            printf("Sent message with timestamp: %" PRIu64 "\n", variant.Value.Uint64);
+             SOPC_ASSERT(SOPC_STATUS_OK == status);
+             SOPC_Sleep(100);
++
+         }
+     }
+     else
+diff --git a/tests/PubSub/validation_tests/udp_sub_test.c b/tests/PubSub/validation_tests/udp_sub_test.c
+index 24014d69d..41e68bd15 100644
+--- a/tests/PubSub/validation_tests/udp_sub_test.c
++++ b/tests/PubSub/validation_tests/udp_sub_test.c
+@@ -72,7 +72,7 @@ static void setupConnection(void)
+     dsReader = SOPC_ReaderGroup_Get_DataSetReader_At(subReader, 0);
+     SOPC_ReaderGroup_Set_GroupId(subReader, (uint16_t) subGroupId);
+     SOPC_ReaderGroup_Set_GroupVersion(subReader, subGroupVersion);
+-    SOPC_ReaderGroup_Set_PublisherId_UInteger(subReader, 15300);
++    SOPC_ReaderGroup_Set_PublisherId_UInteger(subReader, 123);
+ 
+     SOPC_DataSetReader_Set_DataSetWriterId(dsReader, 123);
+ 
+@@ -82,7 +82,7 @@ static void setupConnection(void)
+     meta = SOPC_DataSetReader_Get_FieldMetaData_At(dsReader, 0);
+     SOPC_ASSERT(NULL != meta);
+     SOPC_FieldMetaData_ArrayDimension_Move(meta, &arrDimension);
+-    SOPC_FieldMetaData_Set_BuiltinType(meta, SOPC_UInt32_Id);
++    SOPC_FieldMetaData_Set_BuiltinType(meta, SOPC_UInt64_Id);
+     // Var 2
+     meta = SOPC_DataSetReader_Get_FieldMetaData_At(dsReader, 1);
+     SOPC_ASSERT(NULL != meta);
+@@ -284,7 +284,8 @@ static void readyToReceive(void* sockContext, SOPC_Socket sock)
+             }
+             SOPC_UADP_NetworkMessage_Delete(uadp_nm);
+         }
+-        SOPC_Atomic_Int_Set(&stop, true);
++        //Subscriber stops here after only one received message
++        //SOPC_Atomic_Int_Set(&stop, true);
+     }
+     else if (SOPC_STATUS_OK == status && buffer->length == 1)
+     {
+@@ -314,7 +315,8 @@ int main(void)
+ 
+     SOPC_Helper_Endianness_Check();
+ 
+-    SOPC_ReturnStatus status = SOPC_UDP_Socket_CreateToReceive(listenAddr, NULL, true, true, &sock);
++    //SOPC_ReturnStatus status = SOPC_UDP_Socket_CreateToReceive(listenAddr, NULL, true, true, &sock);
++    SOPC_ReturnStatus status = SOPC_UDP_Socket_CreateToReceive(listenAddr, "10.51.140.223", true, true, &sock);
+     buffer = SOPC_Buffer_Create(4096);
+ 
+     if (SOPC_STATUS_OK == status)
+@@ -323,7 +325,8 @@ int main(void)
+         SOPC_Sub_SocketsMgr_Initialize(NULL, 0, &sock, 1, readyToReceive, &timeout, 0);
+     }
+ 
+-    while (SOPC_STATUS_OK == status && false == SOPC_Atomic_Int_Get(&stop) && sleepCount > 0)
++    //while (SOPC_STATUS_OK == status && false == SOPC_Atomic_Int_Get(&stop) && sleepCount > 0)
++    while (SOPC_STATUS_OK == status && false == SOPC_Atomic_Int_Get(&stop))
+     {
+         SOPC_Sleep(100);
+         sleepCount--;
