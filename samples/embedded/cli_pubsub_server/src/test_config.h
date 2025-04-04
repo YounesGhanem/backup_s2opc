@@ -40,7 +40,9 @@
 /***************************************************/
 // The server endpoint address
 #ifndef CONFIG_SOPC_ENDPOINT_ADDRESS
-#define CONFIG_SOPC_ENDPOINT_ADDRESS "opc.tcp://localhost:4841"
+// #define CONFIG_SOPC_ENDPOINT_ADDRESS "opc.tcp://localhost:4841"
+//#define CONFIG_SOPC_ENDPOINT_ADDRESS "opc.tcp://localhost:30222"
+#define CONFIG_SOPC_ENDPOINT_ADDRESS "opc.tcp://localhost:30222"
 #endif
 
 #ifndef CONFIG_SOPC_PUBLISHER_ADDRESS

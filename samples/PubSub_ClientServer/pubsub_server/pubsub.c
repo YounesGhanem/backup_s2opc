@@ -55,6 +55,8 @@
 #include "pubsub_config_static.h"
 #endif
 
+#include "sopc_filesystem.h" //fmemopen (windows)
+
 // First MS Period of scheduler task. 500ms
 #define PUBSUB_SCHEDULER_FIRST_MSPERIOD 500
 
@@ -145,18 +147,287 @@ static void Server_GapInDsmSnCb(SOPC_Conf_PublisherId pubId,
     }
 }
 
+
+FILE* SOPC_FileSystem_fmemopen(void* buf, size_t size, const char* mode)
+{
+#ifdef _WIN32
+    FILE* tmp = tmpfile();
+    if (tmp && buf && size > 0)
+    {
+        fwrite(buf, 1, size, tmp);
+        rewind(tmp);
+    }
+    return tmp;
+#else
+    return fmemopen(buf, size, mode);
+#endif
+}
+
+static SOPC_SubTargetVariableConfig* create_sub_config(void)
+{
+    SOPC_SubTargetVariableConfig* cfg = SOPC_SubTargetVariableConfig_Create(&Server_SetTargetVariables);
+    if (!cfg)
+    {
+        SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Failed to create SubTargetVariableConfig.");
+    }
+    return cfg;
+}
+
+static SOPC_PubSourceVariableConfig* create_pub_config(void)
+{
+    SOPC_PubSourceVariableConfig* cfg = SOPC_PubSourceVariableConfig_Create(&Server_GetSourceVariables);
+    if (!cfg)
+    {
+        SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Failed to create PubSourceVariableConfig.");
+    }
+    return cfg;
+}
+
+
+static SOPC_PubSubConfiguration* load_configuration_from_buffer(char* buffer)
+{
+    FILE* fd = SOPC_FileSystem_fmemopen(buffer, strlen(buffer), "r");
+    if (fd == NULL)
+    {
+        SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Cannot open configuration buffer.");
+        return NULL;
+    }
+
+    SOPC_PubSubConfiguration* config = SOPC_PubSubConfig_ParseXML(fd);
+    fclose(fd);
+
+    if (config == NULL)
+    {
+        SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Failed to parse configuration.");
+    }
+
+    return config;
+}
+
+
+// SOPC_ReturnStatus PubSub_Configure(void)
+// {
+//     SOPC_ReturnStatus status = SOPC_STATUS_OK;
+// #ifdef PUBSUB_STATIC_CONFIG
+//     SOPC_PubSubConfiguration* pPubSubConfig = SOPC_PubSubConfig_GetStatic();
+//     if (NULL == pPubSubConfig)
+//     {
+//         return SOPC_STATUS_NOK;
+//     }
+//     SOPC_Logger_TraceInfo(SOPC_LOG_MODULE_PUBSUB, "PubSub static configuration loaded");
+// #else
+//     /* PubSub Configuration */
+//     SOPC_Array* configBuffers = Server_GetConfigurationPaths();
+//     if (NULL == configBuffers || SOPC_Array_Size(configBuffers) != 1)
+//     {
+//         SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Multiple configuration paths");
+//         SOPC_Array_Delete(configBuffers);
+//         return SOPC_STATUS_NOK;
+//     }
+
+//     char* configBuffer = SOPC_Array_Get(configBuffers, char*, 0);
+//     FILE* fd = SOPC_FileSystem_fmemopen((void*) configBuffer, strlen(configBuffer), "r");
+//     SOPC_PubSubConfiguration* pPubSubConfig = NULL;
+
+//     if (NULL == fd)
+//     {
+//         SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Cannot open \"%s\": %s", configBuffer, strerror(errno));
+//         status = SOPC_STATUS_NOK;
+//     }
+//     if (SOPC_STATUS_OK == status)
+//     {
+//         pPubSubConfig = SOPC_PubSubConfig_ParseXML(fd);
+//         if (NULL == pPubSubConfig)
+//         {
+//             SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Cannot parse PubSub configuration file \"%s\"",
+//                                    configBuffer);
+//             status = SOPC_STATUS_NOK;
+//         }
+//         else
+//         {
+//             SOPC_Logger_TraceInfo(SOPC_LOG_MODULE_PUBSUB, "PubSub XML configuration loaded");
+//         }
+//     }
+//     if (NULL != fd)
+//     {
+//         fclose(fd);
+//         fd = NULL;
+//     }
+// #endif
+
+
+
+//     /* Sub target configuration */
+//     SOPC_SubTargetVariableConfig* pTargetConfig = NULL;
+//     if (SOPC_STATUS_OK == status)
+//     {
+//         pTargetConfig = SOPC_SubTargetVariableConfig_Create(&Server_SetTargetVariables);
+//         if (NULL == pTargetConfig)
+//         {
+//             SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Cannot create Sub configuration");
+//             status = SOPC_STATUS_NOK;
+//         }
+//     }
+
+//     /* Pub target configuration */
+//     SOPC_PubSourceVariableConfig* pSourceConfig = NULL;
+//     if (SOPC_STATUS_OK == status)
+//     {
+//         pSourceConfig = SOPC_PubSourceVariableConfig_Create(&Server_GetSourceVariables);
+//         if (NULL == pSourceConfig)
+//         {
+//             SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Cannot create Pub configuration");
+//             status = SOPC_STATUS_NOK;
+//         }
+//     }
+
+//     /* at least one message with encrypt and/or sign security  */
+//     g_isSecurity = false;
+//     g_isSks = false;
+//     /* List of SKS servers configurations. */
+//     SOPC_SKS_Local_Configuration* sksConfigArray = NULL;
+//     uint32_t sksConfigLength = 0;
+//     if (SOPC_STATUS_OK == status)
+//     {
+//         status = get_sks_config(pPubSubConfig, &g_isSecurity, &sksConfigArray, &sksConfigLength);
+//         SOPC_ASSERT(2 > sksConfigLength); /* Only one SKS configuration is managed */
+//         // Check if configuration provides a SKS
+//         g_isSks = (NULL != sksConfigArray && 0 < sksConfigLength && 0 < SOPC_Array_Size(sksConfigArray->sksArray));
+//         if (SOPC_STATUS_OK != status)
+//         {
+//             SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Cannot retrieve PubSub Security Mode information");
+//         }
+//         else if (g_isSecurity && !g_isSks)
+//         {
+//             SOPC_Logger_TraceWarning(SOPC_LOG_MODULE_PUBSUB,
+//                                      "PubSub Security is used but no SKS address provided, only the configured "
+//                                      "fallback keys will be used (never renewed) !");
+//         }
+//     }
+
+//     if (SOPC_STATUS_OK == status && g_isSecurity)
+//     {
+//         SOPC_ASSERT(UINT32_MAX > SOPC_Array_Size(sksConfigArray->sksArray));
+//         uint32_t nbSks = (uint32_t) SOPC_Array_Size(sksConfigArray->sksArray);
+//         if (!g_isSks)
+//         {
+//             SOPC_ASSERT(0 == nbSks);
+//             nbSks = 1;
+//         }
+
+//         // nbSks (or 1 for fallback provider  with local keys)
+//         SOPC_SKProvider** providers = SOPC_Calloc(nbSks, sizeof(SOPC_SKProvider*));
+
+//         if (NULL == providers)
+//         {
+//             status = SOPC_STATUS_OUT_OF_MEMORY;
+//         }
+
+//         if (g_isSks)
+//         {
+//             /* 1. Create one instance of BySKS SKProvider for each Sks description */
+//             for (uint32_t i = 0; i < nbSks && SOPC_STATUS_OK == status; i++)
+//             {
+//                 SOPC_SecurityKeyServices* sksElt =
+//                     SOPC_Array_Get(sksConfigArray->sksArray, SOPC_SecurityKeyServices*, i);
+//                 SOPC_ASSERT(NULL != sksElt);
+//                 SOPC_SecureConnection_Config* secureConnCfg =
+//                     Client_AddSecureConnectionConfig(SOPC_SecurityKeyServices_Get_EndpointUrl(sksElt),
+//                                                      SOPC_SecurityKeyServices_Get_ServerCertificate(sksElt));
+//                 if (NULL != secureConnCfg)
+//                 {
+//                     // Create a SK Provider which get Keys from a GetSecurityKeys request
+//                     providers[i] = Client_Provider_BySKS_Create(secureConnCfg);
+//                     if (NULL == providers[i])
+//                     {
+//                         status = SOPC_STATUS_OUT_OF_MEMORY;
+//                     }
+//                 }
+//                 else
+//                 {
+//                     status = SOPC_STATUS_NOK;
+//                     SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "PubSub Cannot configure Get Security Keys");
+//                 }
+//             }
+//         }
+//         else
+//         {
+//             /* 1-alternative. Add a fallback to use local keys if no SKS server is defined in configuration */
+//             if (SOPC_STATUS_OK == status)
+//             {
+//                 providers[0] = Fallback_Provider_Create();
+//                 if (NULL == providers[0])
+//                 {
+//                     status = SOPC_STATUS_NOK;
+//                 }
+//                 else
+//                 {
+//                     g_isSks = true; // Fallback SKS active
+//                 }
+//             }
+//         }
+
+//         /* 2. Then wrap these instances in at TryList SKProvider */
+//         if (SOPC_STATUS_OK == status)
+//         {
+//             g_skProvider = SOPC_SKProvider_TryList_Create(providers, nbSks);
+//         }
+
+//         if (NULL == g_skProvider && NULL != providers)
+//         {
+//             status = SOPC_STATUS_OUT_OF_MEMORY;
+//             for (uint32_t i = 0; i < nbSks; i++)
+//             {
+//                 SOPC_SKProvider_Clear(providers[i]);
+//                 SOPC_Free(providers[i]);
+//             }
+//             SOPC_Free(providers);
+//         }
+//     }
+
+//     // Clean sks config data
+//     if (NULL != sksConfigArray)
+//     {
+//         for (uint32_t i = 0; i < sksConfigLength; i++)
+//         {
+//             SOPC_SKS_Local_Configuration_Clear(&sksConfigArray[i]);
+//         }
+//         SOPC_Free(sksConfigArray);
+//         sksConfigArray = 0;
+//         sksConfigLength = 0;
+//     }
+
+//     if (SOPC_STATUS_OK == status)
+//     {
+//         free_global_configurations();
+//         g_pPubSubConfig = pPubSubConfig;
+//         g_pTargetConfig = pTargetConfig;
+//         g_pSourceConfig = pSourceConfig;
+//     }
+//     else
+//     {
+//         SOPC_SubTargetVariableConfig_Delete(pTargetConfig);
+//         SOPC_PubSourceVariableConfig_Delete(pSourceConfig);
+//         SOPC_PubSubConfiguration_Delete(pPubSubConfig);
+//     }
+
+// #ifndef PUBSUB_STATIC_CONFIG
+//     /* Save XML configuration */
+//     if (SOPC_STATUS_OK == status)
+//     {
+//         PubSub_SaveConfiguration(configBuffer);
+//     }
+//     SOPC_Array_Delete(configBuffers);
+// #endif
+
+//     return status;
+// }
+
 SOPC_ReturnStatus PubSub_Configure(void)
 {
     SOPC_ReturnStatus status = SOPC_STATUS_OK;
-#ifdef PUBSUB_STATIC_CONFIG
-    SOPC_PubSubConfiguration* pPubSubConfig = SOPC_PubSubConfig_GetStatic();
-    if (NULL == pPubSubConfig)
-    {
-        return SOPC_STATUS_NOK;
-    }
-    SOPC_Logger_TraceInfo(SOPC_LOG_MODULE_PUBSUB, "PubSub static configuration loaded");
-#else
-    /* PubSub Configuration */
+    SOPC_PubSubConfiguration* pPubSubConfig = NULL;
+#ifndef PUBSUB_STATIC_CONFIG
     SOPC_Array* configBuffers = Server_GetConfigurationPaths();
     if (NULL == configBuffers || SOPC_Array_Size(configBuffers) != 1)
     {
@@ -166,94 +437,63 @@ SOPC_ReturnStatus PubSub_Configure(void)
     }
 
     char* configBuffer = SOPC_Array_Get(configBuffers, char*, 0);
-    FILE* fd = SOPC_FileSystem_fmemopen((void*) configBuffer, strlen(configBuffer), "r");
-    SOPC_PubSubConfiguration* pPubSubConfig = NULL;
-
-    if (NULL == fd)
+    pPubSubConfig = load_configuration_from_buffer(configBuffer);
+    if (NULL == pPubSubConfig)
     {
-        SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Cannot open \"%s\": %s", configBuffer, strerror(errno));
-        status = SOPC_STATUS_NOK;
+        SOPC_Array_Delete(configBuffers);
+        return SOPC_STATUS_NOK;
     }
-    if (SOPC_STATUS_OK == status)
+#else
+    pPubSubConfig = SOPC_PubSubConfig_GetStatic();
+    if (NULL == pPubSubConfig)
     {
-        pPubSubConfig = SOPC_PubSubConfig_ParseXML(fd);
-        if (NULL == pPubSubConfig)
-        {
-            SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Cannot parse PubSub configuration file \"%s\"",
-                                   configBuffer);
-            status = SOPC_STATUS_NOK;
-        }
-        else
-        {
-            SOPC_Logger_TraceInfo(SOPC_LOG_MODULE_PUBSUB, "PubSub XML configuration loaded");
-        }
+        return SOPC_STATUS_NOK;
     }
-    if (NULL != fd)
-    {
-        fclose(fd);
-        fd = NULL;
-    }
+    SOPC_Logger_TraceInfo(SOPC_LOG_MODULE_PUBSUB, "PubSub static configuration loaded");
 #endif
 
-    /* Sub target configuration */
-    SOPC_SubTargetVariableConfig* pTargetConfig = NULL;
-    if (SOPC_STATUS_OK == status)
+    SOPC_SubTargetVariableConfig* pTargetConfig = create_sub_config();
+    if (NULL == pTargetConfig)
     {
-        pTargetConfig = SOPC_SubTargetVariableConfig_Create(&Server_SetTargetVariables);
-        if (NULL == pTargetConfig)
-        {
-            SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Cannot create Sub configuration");
-            status = SOPC_STATUS_NOK;
-        }
+        SOPC_PubSubConfiguration_Delete(pPubSubConfig);
+#ifndef PUBSUB_STATIC_CONFIG
+        SOPC_Array_Delete(configBuffers);
+#endif
+        return SOPC_STATUS_NOK;
     }
 
-    /* Pub target configuration */
-    SOPC_PubSourceVariableConfig* pSourceConfig = NULL;
-    if (SOPC_STATUS_OK == status)
+    SOPC_PubSourceVariableConfig* pSourceConfig = create_pub_config();
+    if (NULL == pSourceConfig)
     {
-        pSourceConfig = SOPC_PubSourceVariableConfig_Create(&Server_GetSourceVariables);
-        if (NULL == pSourceConfig)
-        {
-            SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Cannot create Pub configuration");
-            status = SOPC_STATUS_NOK;
-        }
+        SOPC_SubTargetVariableConfig_Delete(pTargetConfig);
+        SOPC_PubSubConfiguration_Delete(pPubSubConfig);
+#ifndef PUBSUB_STATIC_CONFIG
+        SOPC_Array_Delete(configBuffers);
+#endif
+        return SOPC_STATUS_NOK;
     }
 
-    /* at least one message with encrypt and/or sign security  */
     g_isSecurity = false;
     g_isSks = false;
-    /* List of SKS servers configurations. */
     SOPC_SKS_Local_Configuration* sksConfigArray = NULL;
     uint32_t sksConfigLength = 0;
-    if (SOPC_STATUS_OK == status)
+    status = get_sks_config(pPubSubConfig, &g_isSecurity, &sksConfigArray, &sksConfigLength);
+    SOPC_ASSERT(sksConfigLength < 2);
+    g_isSks = (NULL != sksConfigArray && sksConfigLength > 0 && SOPC_Array_Size(sksConfigArray->sksArray) > 0);
+
+    if (SOPC_STATUS_OK != status)
     {
-        status = get_sks_config(pPubSubConfig, &g_isSecurity, &sksConfigArray, &sksConfigLength);
-        SOPC_ASSERT(2 > sksConfigLength); /* Only one SKS configuration is managed */
-        // Check if configuration provides a SKS
-        g_isSks = (NULL != sksConfigArray && 0 < sksConfigLength && 0 < SOPC_Array_Size(sksConfigArray->sksArray));
-        if (SOPC_STATUS_OK != status)
-        {
-            SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Cannot retrieve PubSub Security Mode information");
-        }
-        else if (g_isSecurity && !g_isSks)
-        {
-            SOPC_Logger_TraceWarning(SOPC_LOG_MODULE_PUBSUB,
-                                     "PubSub Security is used but no SKS address provided, only the configured "
-                                     "fallback keys will be used (never renewed) !");
-        }
+        SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "Cannot retrieve PubSub Security Mode information");
+    }
+    else if (g_isSecurity && !g_isSks)
+    {
+        SOPC_Logger_TraceWarning(SOPC_LOG_MODULE_PUBSUB,
+                                   "PubSub Security is used but no SKS address provided, fallback keys only.");
     }
 
     if (SOPC_STATUS_OK == status && g_isSecurity)
     {
-        SOPC_ASSERT(UINT32_MAX > SOPC_Array_Size(sksConfigArray->sksArray));
-        uint32_t nbSks = (uint32_t) SOPC_Array_Size(sksConfigArray->sksArray);
-        if (!g_isSks)
-        {
-            SOPC_ASSERT(0 == nbSks);
-            nbSks = 1;
-        }
-
-        // nbSks (or 1 for fallback provider  with local keys)
+        uint32_t nbSks = g_isSks ? (uint32_t) SOPC_Array_Size(sksConfigArray->sksArray) : 1;
         SOPC_SKProvider** providers = SOPC_Calloc(nbSks, sizeof(SOPC_SKProvider*));
 
         if (NULL == providers)
@@ -261,51 +501,40 @@ SOPC_ReturnStatus PubSub_Configure(void)
             status = SOPC_STATUS_OUT_OF_MEMORY;
         }
 
-        if (g_isSks)
+        if (SOPC_STATUS_OK == status && g_isSks)
         {
-            /* 1. Create one instance of BySKS SKProvider for each Sks description */
-            for (uint32_t i = 0; i < nbSks && SOPC_STATUS_OK == status; i++)
+            for (uint32_t i = 0; i < nbSks; i++)
             {
-                SOPC_SecurityKeyServices* sksElt =
-                    SOPC_Array_Get(sksConfigArray->sksArray, SOPC_SecurityKeyServices*, i);
+                SOPC_SecurityKeyServices* sksElt = SOPC_Array_Get(sksConfigArray->sksArray, SOPC_SecurityKeyServices*, i);
                 SOPC_ASSERT(NULL != sksElt);
-                SOPC_SecureConnection_Config* secureConnCfg =
-                    Client_AddSecureConnectionConfig(SOPC_SecurityKeyServices_Get_EndpointUrl(sksElt),
-                                                     SOPC_SecurityKeyServices_Get_ServerCertificate(sksElt));
+                SOPC_SecureConnection_Config* secureConnCfg = Client_AddSecureConnectionConfig(
+                    SOPC_SecurityKeyServices_Get_EndpointUrl(sksElt), SOPC_SecurityKeyServices_Get_ServerCertificate(sksElt));
                 if (NULL != secureConnCfg)
                 {
-                    // Create a SK Provider which get Keys from a GetSecurityKeys request
                     providers[i] = Client_Provider_BySKS_Create(secureConnCfg);
                     if (NULL == providers[i])
-                    {
                         status = SOPC_STATUS_OUT_OF_MEMORY;
-                    }
                 }
                 else
                 {
-                    status = SOPC_STATUS_NOK;
                     SOPC_Logger_TraceError(SOPC_LOG_MODULE_PUBSUB, "PubSub Cannot configure Get Security Keys");
+                    status = SOPC_STATUS_NOK;
                 }
             }
         }
-        else
+        else if (SOPC_STATUS_OK == status)
         {
-            /* 1-alternative. Add a fallback to use local keys if no SKS server is defined in configuration */
-            if (SOPC_STATUS_OK == status)
+            providers[0] = Fallback_Provider_Create();
+            if (NULL == providers[0])
             {
-                providers[0] = Fallback_Provider_Create();
-                if (NULL == providers[0])
-                {
-                    status = SOPC_STATUS_NOK;
-                }
-                else
-                {
-                    g_isSks = true; // Fallback SKS active
-                }
+                status = SOPC_STATUS_NOK;
+            }
+            else
+            {
+                g_isSks = true;
             }
         }
 
-        /* 2. Then wrap these instances in at TryList SKProvider */
         if (SOPC_STATUS_OK == status)
         {
             g_skProvider = SOPC_SKProvider_TryList_Create(providers, nbSks);
@@ -323,7 +552,6 @@ SOPC_ReturnStatus PubSub_Configure(void)
         }
     }
 
-    // Clean sks config data
     if (NULL != sksConfigArray)
     {
         for (uint32_t i = 0; i < sksConfigLength; i++)
@@ -331,8 +559,6 @@ SOPC_ReturnStatus PubSub_Configure(void)
             SOPC_SKS_Local_Configuration_Clear(&sksConfigArray[i]);
         }
         SOPC_Free(sksConfigArray);
-        sksConfigArray = 0;
-        sksConfigLength = 0;
     }
 
     if (SOPC_STATUS_OK == status)
@@ -350,7 +576,6 @@ SOPC_ReturnStatus PubSub_Configure(void)
     }
 
 #ifndef PUBSUB_STATIC_CONFIG
-    /* Save XML configuration */
     if (SOPC_STATUS_OK == status)
     {
         PubSub_SaveConfiguration(configBuffer);

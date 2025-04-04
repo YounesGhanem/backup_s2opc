@@ -29,10 +29,10 @@
 
 #define RECURSION_LIMIT SOPC_DEFAULT_MAX_STRUCT_NESTED_LEVEL
 
-bool SOPC_AddressSpaceUtil_IsTypeDefinition(const OpcUa_ReferenceNode* ref);
-bool SOPC_AddressSpaceUtil_IsComponent(const OpcUa_ReferenceNode* ref);
-bool SOPC_AddressSpaceUtil_IsProperty(const OpcUa_ReferenceNode* ref);
-bool SOPC_AddressSpaceUtil_IsHasSubtype(const OpcUa_ReferenceNode* ref, bool isReverse);
+bool SOPC_AddressSpaceUtil_IsTypeDefinition(OpcUa_ReferenceNode* ref);
+bool SOPC_AddressSpaceUtil_IsComponent(OpcUa_ReferenceNode* ref);
+bool SOPC_AddressSpaceUtil_IsProperty(OpcUa_ReferenceNode* ref);
+bool SOPC_AddressSpaceUtil_IsHasSubtype(OpcUa_ReferenceNode* ref, bool isReverse);
 
 SOPC_ExpandedNodeId* SOPC_AddressSpaceUtil_GetTypeDefinition(SOPC_AddressSpace* addSpace, SOPC_AddressSpace_Node* node);
 

@@ -66,10 +66,13 @@
  
  #include "pubsub.h"
  #include "sopc_assert.h"
+ #include "sopc_mem_alloc.h"
  
  #define KIND_BENCHMARK_DEFAULT PUBLISHER_BENCH
  #define MAX_BUFFER_SIZE 1024
  
+ SOPC_Mutex globalValue_lock;
+
  typedef enum benchmark_kind_t
  {
      PUBLISHER_BENCH,
@@ -106,6 +109,35 @@
  }
 
  /*************************************************/
+
+ bool PubSub_common_init(void)
+{
+    /* Signal handling: close the program gracefully when interrupted */
+    signal(SIGINT, signal_stop_program);
+    signal(SIGTERM, signal_stop_program);
+
+    SOPC_Mutex_Initialization(&globalValue_lock);
+
+    /* Set log to debug trace and log path to directory "logs/" */
+    const char* logPath = "./logs/";
+    SOPC_Log_Configuration logConfiguration = SOPC_Common_GetDefaultLogConfiguration();
+    logConfiguration.logLevel = SOPC_LOG_LEVEL_ERROR;
+    logConfiguration.logSysConfig.fileSystemLogConfig.logDirPath = logPath;
+
+    bool res = (SOPC_STATUS_OK == SOPC_Common_Initialize(logConfiguration));
+
+    if (!res)
+    {
+        printf("ERROR: Toolkit Initialisation failed\n");
+    }
+    return res;
+}
+
+void PubSub_common_clear(void)
+{
+    SOPC_Common_Clear();
+    SOPC_Mutex_Clear(&globalValue_lock);
+}
 
   static bool benchmark(void)
  {

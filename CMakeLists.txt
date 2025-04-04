@@ -31,8 +31,8 @@ endif()
 # S2OPC #
 
 # Options
-option(ENABLE_SAMPLES "Build the S2OPC library samples" OFF)
-option(ENABLE_TESTING "Build the S2OPC library tests" ON)
+option(ENABLE_SAMPLES "Build the S2OPC library samples" ON)
+option(ENABLE_TESTING "Build the S2OPC library tests" OFF)
 
 add_subdirectory(src)
 

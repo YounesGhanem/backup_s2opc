@@ -526,61 +526,61 @@ static void setupServer(void)
     status = SOPC_SecurityConfig_AddUserTokenPolicy(sp, &SOPC_UserTokenPolicy_Anonymous);
     SOPC_ASSERT(status == SOPC_STATUS_OK && "SOPC_SecurityConfig_AddUserTokenPolicy #1/#1 failed");
 
-    if (SOPC_CryptoProfile_Is_Implemented())
-    {
-        /* 2nd Security policy is Basic256 with anonymous or username authentication allowed
-         * (without password encryption) */
-        sp = SOPC_EndpointConfig_AddSecurityConfig(g_epConfig, SOPC_SecurityPolicy_Basic256);
-        SOPC_ASSERT(NULL != sp && "SOPC_EndpointConfig_AddSecurityConfig #2 failed");
+    // if (SOPC_CryptoProfile_Is_Implemented())
+    // {
+    //     /* 2nd Security policy is Basic256 with anonymous or username authentication allowed
+    //      * (without password encryption) */
+    //     sp = SOPC_EndpointConfig_AddSecurityConfig(g_epConfig, SOPC_SecurityPolicy_Basic256);
+    //     SOPC_ASSERT(NULL != sp && "SOPC_EndpointConfig_AddSecurityConfig #2 failed");
 
-        status = SOPC_SecurityConfig_SetSecurityModes(
-            sp, SOPC_SECURITY_MODE_SIGN_MASK | SOPC_SECURITY_MODE_SIGNANDENCRYPT_MASK);
-        SOPC_ASSERT(status == SOPC_STATUS_OK && "SOPC_SecurityConfig_SetSecurityModes #2 failed");
+    //     status = SOPC_SecurityConfig_SetSecurityModes(
+    //         sp, SOPC_SECURITY_MODE_SIGN_MASK | SOPC_SECURITY_MODE_SIGNANDENCRYPT_MASK);
+    //     SOPC_ASSERT(status == SOPC_STATUS_OK && "SOPC_SecurityConfig_SetSecurityModes #2 failed");
 
-        status = SOPC_SecurityConfig_AddUserTokenPolicy(sp, &SOPC_UserTokenPolicy_Anonymous);
-        SOPC_ASSERT(status == SOPC_STATUS_OK && "SOPC_SecurityConfig_AddUserTokenPolicy #2/#1 failed");
-        status =
-            SOPC_SecurityConfig_AddUserTokenPolicy(sp, &SOPC_UserTokenPolicy_UserName_Basic256Sha256SecurityPolicy);
-        SOPC_ASSERT(status == SOPC_STATUS_OK && "SOPC_SecurityConfig_AddUserTokenPolicy #2/#2 failed");
+    //     status = SOPC_SecurityConfig_AddUserTokenPolicy(sp, &SOPC_UserTokenPolicy_Anonymous);
+    //     SOPC_ASSERT(status == SOPC_STATUS_OK && "SOPC_SecurityConfig_AddUserTokenPolicy #2/#1 failed");
+    //     status =
+    //         SOPC_SecurityConfig_AddUserTokenPolicy(sp, &SOPC_UserTokenPolicy_UserName_Basic256Sha256SecurityPolicy);
+    //     SOPC_ASSERT(status == SOPC_STATUS_OK && "SOPC_SecurityConfig_AddUserTokenPolicy #2/#2 failed");
 
-        /* 3rd Security policy is Basic256Sha256 with anonymous or username authentication allowed
-         * (without password encryption) */
-        sp = SOPC_EndpointConfig_AddSecurityConfig(g_epConfig, SOPC_SecurityPolicy_Basic256Sha256);
-        SOPC_ASSERT(NULL != sp && "SOPC_EndpointConfig_AddSecurityConfig #3 failed");
+    //     /* 3rd Security policy is Basic256Sha256 with anonymous or username authentication allowed
+    //      * (without password encryption) */
+    //     sp = SOPC_EndpointConfig_AddSecurityConfig(g_epConfig, SOPC_SecurityPolicy_Basic256Sha256);
+    //     SOPC_ASSERT(NULL != sp && "SOPC_EndpointConfig_AddSecurityConfig #3 failed");
 
-        status = SOPC_SecurityConfig_SetSecurityModes(sp, SOPC_SECURITY_MODE_SIGNANDENCRYPT_MASK);
-        SOPC_ASSERT(status == SOPC_STATUS_OK && "SOPC_SecurityConfig_SetSecurityModes #3 failed");
+    //     status = SOPC_SecurityConfig_SetSecurityModes(sp, SOPC_SECURITY_MODE_SIGNANDENCRYPT_MASK);
+    //     SOPC_ASSERT(status == SOPC_STATUS_OK && "SOPC_SecurityConfig_SetSecurityModes #3 failed");
 
-        status = SOPC_SecurityConfig_AddUserTokenPolicy(sp, &SOPC_UserTokenPolicy_Anonymous);
-        SOPC_ASSERT(status == SOPC_STATUS_OK && "SOPC_SecurityConfig_AddUserTokenPolicy #3/#1 failed");
-        status =
-            SOPC_SecurityConfig_AddUserTokenPolicy(sp, &SOPC_UserTokenPolicy_UserName_Basic256Sha256SecurityPolicy);
-        SOPC_ASSERT(status == SOPC_STATUS_OK && "SOPC_SecurityConfig_AddUserTokenPolicy #3/#2 failed");
+    //     status = SOPC_SecurityConfig_AddUserTokenPolicy(sp, &SOPC_UserTokenPolicy_Anonymous);
+    //     SOPC_ASSERT(status == SOPC_STATUS_OK && "SOPC_SecurityConfig_AddUserTokenPolicy #3/#1 failed");
+    //     status =
+    //         SOPC_SecurityConfig_AddUserTokenPolicy(sp, &SOPC_UserTokenPolicy_UserName_Basic256Sha256SecurityPolicy);
+    //     SOPC_ASSERT(status == SOPC_STATUS_OK && "SOPC_SecurityConfig_AddUserTokenPolicy #3/#2 failed");
 
-        //////////////////////////////////
-        // Server certificates configuration
-        SOPC_CertificateList* ca_cert = NULL;
-        SOPC_CRLList* crl = NULL;
-        SOPC_PKIProvider* pkiProvider = NULL;
-        status = SOPC_ServerConfigHelper_SetKeyCertPairFromBytes(sizeof(server_2k_cert), server_2k_cert,
-                                                                 sizeof(server_2k_key), server_2k_key);
-        SOPC_ASSERT(SOPC_STATUS_OK == status && "SOPC_ServerConfigHelper_SetKeyCertPairFromBytes() failed");
+    //     //////////////////////////////////
+    //     // Server certificates configuration
+    //     SOPC_CertificateList* ca_cert = NULL;
+    //     SOPC_CRLList* crl = NULL;
+    //     SOPC_PKIProvider* pkiProvider = NULL;
+    //     status = SOPC_ServerConfigHelper_SetKeyCertPairFromBytes(sizeof(server_2k_cert), server_2k_cert,
+    //                                                              sizeof(server_2k_key), server_2k_key);
+    //     SOPC_ASSERT(SOPC_STATUS_OK == status && "SOPC_ServerConfigHelper_SetKeyCertPairFromBytes() failed");
 
-        status = SOPC_KeyManager_Certificate_CreateOrAddFromDER(cacert, sizeof(cacert), &ca_cert);
-        SOPC_ASSERT(SOPC_STATUS_OK == status && "SOPC_KeyManager_Certificate_CreateOrAddFromDER() failed");
-        status = SOPC_KeyManager_CRL_CreateOrAddFromDER(cacrl, sizeof(cacrl), &crl);
-        SOPC_ASSERT(SOPC_STATUS_OK == status && "SOPC_KeyManager_CRL_CreateOrAddFromDER() failed");
+    //     status = SOPC_KeyManager_Certificate_CreateOrAddFromDER(cacert, sizeof(cacert), &ca_cert);
+    //     SOPC_ASSERT(SOPC_STATUS_OK == status && "SOPC_KeyManager_Certificate_CreateOrAddFromDER() failed");
+    //     status = SOPC_KeyManager_CRL_CreateOrAddFromDER(cacrl, sizeof(cacrl), &crl);
+    //     SOPC_ASSERT(SOPC_STATUS_OK == status && "SOPC_KeyManager_CRL_CreateOrAddFromDER() failed");
 
-        status = SOPC_PKIProvider_CreateFromList(ca_cert, crl, NULL, NULL, &pkiProvider);
-        SOPC_ASSERT(SOPC_STATUS_OK == status && "SOPC_PKIProvider_CreateFromList() failed");
-        SOPC_KeyManager_Certificate_Free(ca_cert);
-        SOPC_KeyManager_CRL_Free(crl);
+    //     status = SOPC_PKIProvider_CreateFromList(ca_cert, crl, NULL, NULL, &pkiProvider);
+    //     SOPC_ASSERT(SOPC_STATUS_OK == status && "SOPC_PKIProvider_CreateFromList() failed");
+    //     SOPC_KeyManager_Certificate_Free(ca_cert);
+    //     SOPC_KeyManager_CRL_Free(crl);
 
-        status = SOPC_ServerConfigHelper_SetPKIprovider(pkiProvider);
-        SOPC_ASSERT(SOPC_STATUS_OK == status && "SOPC_ServerConfigHelper_SetPKIprovider failed");
+    //     status = SOPC_ServerConfigHelper_SetPKIprovider(pkiProvider);
+    //     SOPC_ASSERT(SOPC_STATUS_OK == status && "SOPC_ServerConfigHelper_SetPKIprovider failed");
 
-        PRINT("Test_Server_Client: Certificates and key loaded\n");
-    }
+    //     PRINT("Test_Server_Client: Certificates and key loaded\n");
+    // }
 
     //////////////////////////////////
     // Setup AddressSpace
@@ -968,6 +968,7 @@ static int cmd_demo_info(WordList* pList)
         }
     }
     const char* netItf = SOPC_Platform_Get_Default_Net_Itf();
+    // printf("Default Net Interface = %s\n", netItf ? netItf : "NULL");
     if (netItf != NULL && netItf[0] != 0)
     {
         PRINT("NET INTERFACE         : %s\n", SOPC_Platform_Get_Default_Net_Itf());

@@ -29,7 +29,7 @@
 #include "sopc_toolkit_config_constants.h"
 #include "sopc_types.h"
 
-typedef bool SOPC_AddressSpaceUtil_IsExpectedRefCb(const OpcUa_ReferenceNode* ref);
+typedef bool SOPC_AddressSpaceUtil_IsExpectedRefCb(OpcUa_ReferenceNode* ref);
 typedef bool SOPC_AddressSpaceUtil_IsExpectedRefNodeCb(const SOPC_AddressSpace_Node* refNode);
 
 static SOPC_ExpandedNodeId* SOPC_Internal_AddressSpaceUtil_GetReferencedNode(
@@ -78,7 +78,7 @@ SOPC_ExpandedNodeId* SOPC_AddressSpaceUtil_GetTypeDefinition(SOPC_AddressSpace* 
                                                             node);
 }
 
-bool SOPC_AddressSpaceUtil_IsComponent(const OpcUa_ReferenceNode* ref)
+bool SOPC_AddressSpaceUtil_IsComponent(OpcUa_ReferenceNode* ref)
 {
     if (ref->IsInverse)
     {
@@ -89,7 +89,7 @@ bool SOPC_AddressSpaceUtil_IsComponent(const OpcUa_ReferenceNode* ref)
            OpcUaId_HasComponent == ref->ReferenceTypeId.Data.Numeric;
 }
 
-bool SOPC_AddressSpaceUtil_IsTypeDefinition(const OpcUa_ReferenceNode* ref)
+bool SOPC_AddressSpaceUtil_IsTypeDefinition(OpcUa_ReferenceNode* ref)
 {
     if (ref->IsInverse)
     {
@@ -100,7 +100,7 @@ bool SOPC_AddressSpaceUtil_IsTypeDefinition(const OpcUa_ReferenceNode* ref)
            OpcUaId_HasTypeDefinition == ref->ReferenceTypeId.Data.Numeric;
 }
 
-bool SOPC_AddressSpaceUtil_IsProperty(const OpcUa_ReferenceNode* ref)
+bool SOPC_AddressSpaceUtil_IsProperty(OpcUa_ReferenceNode* ref)
 {
     if (ref->IsInverse)
     {
@@ -111,7 +111,7 @@ bool SOPC_AddressSpaceUtil_IsProperty(const OpcUa_ReferenceNode* ref)
            OpcUaId_HasProperty == ref->ReferenceTypeId.Data.Numeric;
 }
 
-bool SOPC_AddressSpaceUtil_IsHasSubtype(const OpcUa_ReferenceNode* ref, bool isReverse)
+bool SOPC_AddressSpaceUtil_IsHasSubtype(OpcUa_ReferenceNode* ref, bool isReverse)
 {
     if (isReverse != ref->IsInverse)
     {
@@ -123,7 +123,7 @@ bool SOPC_AddressSpaceUtil_IsHasSubtype(const OpcUa_ReferenceNode* ref, bool isR
            ref->ReferenceTypeId.Data.Numeric == OpcUaId_HasSubtype;
 }
 
-static bool SOPC_AddressSpaceUtil_IsEncodingOf(const OpcUa_ReferenceNode* ref)
+static bool SOPC_AddressSpaceUtil_IsEncodingOf(OpcUa_ReferenceNode* ref)
 {
     if (!ref->IsInverse)
     {
@@ -134,7 +134,7 @@ static bool SOPC_AddressSpaceUtil_IsEncodingOf(const OpcUa_ReferenceNode* ref)
            OpcUaId_HasEncoding == ref->ReferenceTypeId.Data.Numeric;
 }
 
-static bool SOPC_AddressSpaceUtil_IsHasEncoding(const OpcUa_ReferenceNode* ref)
+static bool SOPC_AddressSpaceUtil_IsHasEncoding(OpcUa_ReferenceNode* ref)
 {
     if (ref->IsInverse)
     {

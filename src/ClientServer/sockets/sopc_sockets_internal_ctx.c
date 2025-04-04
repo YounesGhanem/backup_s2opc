@@ -44,6 +44,7 @@ struct Event
 
 void SOPC_SocketsInternalContext_Initialize(void)
 {
+    printf("ici\n");
     uint32_t idx = 0;
     memset(socketsArray, 0, sizeof(SOPC_InternalSocket) * SOPC_MAX_SOCKETS);
     for (idx = 0; idx < SOPC_MAX_SOCKETS; idx++)

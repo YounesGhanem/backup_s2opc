@@ -23,7 +23,7 @@
 #include <string.h>
 
 #include "sopc_sockets_network_event_mgr.h"
-
+#include "p_sopc_sockets.h"
 #include "sopc_sockets_event_mgr.h"
 #include "sopc_sockets_internal_ctx.h"
 
@@ -35,6 +35,7 @@
 #include "sopc_macros.h"
 #include "sopc_mutexes.h"
 #include "sopc_threads.h"
+
 
 static struct
 {
@@ -55,6 +56,8 @@ static struct
 #define MAX_CONSUMED_SIG_BYTES 100 // maximum number of signals consumed per loop
 static uint8_t sigBytes[MAX_CONSUMED_SIG_BYTES]; // read buffer
 
+
+
 static bool SOPC_Internal_InitSocketsToInterruptSelect(void)
 {
     SOPC_ReturnStatus status = SOPC_STATUS_OK;
@@ -62,9 +65,11 @@ static bool SOPC_Internal_InitSocketsToInterruptSelect(void)
 
     SOPC_Socket_AddressInfo* addrs = NULL;
     SOPC_Socket_AddressInfo* iter = NULL;
+    SOPC_Socket_AddressInfo* addrUsed = NULL;
 
     /* Retrieve addressing information for local loopback address */
     status = SOPC_Socket_AddrInfo_Get("127.0.0.1", NULL, &addrs);
+   
     if (SOPC_STATUS_OK == status)
     {
         /* Listen on local loopback address */
@@ -79,6 +84,7 @@ static bool SOPC_Internal_InitSocketsToInterruptSelect(void)
             if (SOPC_STATUS_OK == status)
             {
                 serverListening = true;
+                addrUsed = iter;  //save used address
             }
             else
             {
@@ -93,10 +99,36 @@ static bool SOPC_Internal_InitSocketsToInterruptSelect(void)
     }
 
     /* Connect on local loopback address of the server listening */
-    if (SOPC_STATUS_OK == status)
+    // if (SOPC_STATUS_OK == status)
+    // {
+    //     status = SOPC_Socket_CreateNew(iter, true, false, &receptionThread.sigClientSock);
+    // }
+    /* Connect on local loopback address of the server listening */
+    if (SOPC_STATUS_OK == status && addrUsed != NULL)
     {
-        status = SOPC_Socket_CreateNew(iter, true, false, &receptionThread.sigClientSock);
+        
+        status = SOPC_Socket_CreateNew(addrUsed, true, false, &receptionThread.sigClientSock);
     }
+    else
+    {
+        status = SOPC_STATUS_NOK;
+
+        if (addrUsed!=NULL)
+        {
+            printf("DEBUG: Trying to create client socket with:\n");
+            printf(" -> family = %d\n", addrUsed->addrInfo.ai_family);
+            printf(" -> socktype = %d\n", addrUsed->addrInfo.ai_socktype);
+            printf(" -> protocol = %d\n", addrUsed->addrInfo.ai_protocol);
+            
+            printf("ERROR: No valid address found to create client socket.\n");
+        }
+        else
+        {
+            printf("addrUsed is NULL\n");
+        }
+    }
+
+
     if (SOPC_STATUS_OK == status)
     {
         status = SOPC_Socket_ConnectToLocal(receptionThread.sigClientSock, receptionThread.sigServerListeningSock);
@@ -292,13 +324,20 @@ static void* SOPC_SocketsNetworkEventMgr_ThreadLoop(void* nullData)
 
 static bool SOPC_SocketsNetworkEventMgr_LoopThreadStart(void)
 {
+    printf("DEBUG: Entering  SOPC_SocketsNetworkEventMgr_LoopThreadStart()\n");
+
     if (SOPC_Atomic_Int_Get(&receptionThread.initDone))
     {
+        printf("DEBUG: Reception thread already initialized\n");
         return false;
     }
 
+    printf("DEBUG: After SOPC_Atomic\n");
+
     /* Initialize the sockets used to interrupt "select" blocking call */
     bool result = SOPC_Internal_InitSocketsToInterruptSelect();
+
+    printf("DEBUG: After SOPC_Internal_InitSocketsToInterruptSelect()\n");
 
     if (!result)
     {
@@ -345,7 +384,15 @@ static void SOPC_SocketsNetworkEventMgr_LoopThreadStop(void)
 
 void SOPC_SocketsNetworkEventMgr_Initialize(void)
 {
+    
     bool result = SOPC_SocketsNetworkEventMgr_LoopThreadStart();
+
+    if (!result)
+    {
+        printf("ERROR: SOPC_SocketsNetworkEventMgr_LoopThreadStart() failed\n");
+        return;
+
+    }
     SOPC_ASSERT(result);
 }
 

@@ -261,7 +261,9 @@ add_executable(test_secure_channels_client ${SOCKETS_SRC}
 
 target_include_directories(test_secure_channels_client PRIVATE "unit_tests/secure_channels/stubs"
   ${S2OPC_CLIENTSERVER_INTERNAL_INCLUDES}
-  ${S2OPC_TEST_CLIENTSERVER_HELPER_INCLUDES})
+  ${S2OPC_TEST_CLIENTSERVER_HELPER_INCLUDES}
+  ${S2OPC_ROOT_PATH}/src/Common/helpers_platform_dep/windows
+  )
 target_compile_options(test_secure_channels_client PRIVATE ${S2OPC_COMPILER_FLAGS})
 target_compile_definitions(test_secure_channels_client PRIVATE ${S2OPC_DEFINITIONS})
 target_link_libraries(test_secure_channels_client PRIVATE s2opc_common)
@@ -276,7 +278,10 @@ target_include_directories(test_secure_channels_server PRIVATE ${S2OPC_TEST_CLIE
 target_compile_options(test_secure_channels_server PRIVATE ${S2OPC_COMPILER_FLAGS})
 target_compile_definitions(test_secure_channels_server PRIVATE ${S2OPC_DEFINITIONS})
 target_include_directories(test_secure_channels_server PRIVATE "unit_tests/secure_channels/stubs"
-  ${S2OPC_CLIENTSERVER_INTERNAL_INCLUDES})
+  ${S2OPC_CLIENTSERVER_INTERNAL_INCLUDES}
+  ${S2OPC_TEST_CLIENTSERVER_HELPER_INCLUDES}
+  ${S2OPC_ROOT_PATH}/src/Common/helpers_platform_dep/windows
+  )
 
   ## S2OPC validation tests ##
 

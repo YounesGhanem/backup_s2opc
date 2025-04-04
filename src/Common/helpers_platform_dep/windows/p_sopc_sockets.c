@@ -25,7 +25,7 @@
  #include <string.h>
  #include <io.h>
  #include <errno.h>
-
+ #include <stdio.h>
 #ifndef MSG_NOSIGNAL
     #define MSG_NOSIGNAL 0
 #endif
@@ -428,38 +428,52 @@
      {
          return SOPC_STATUS_INVALID_PARAMETERS;
      }
+ 
      SOPC_Socket_Impl* acceptedImpl = SOPC_Calloc(1, sizeof(*acceptedImpl));
      if (NULL == acceptedImpl)
      {
          return SOPC_STATUS_OUT_OF_MEMORY;
      }
+ 
      SOPC_ReturnStatus status = SOPC_STATUS_INVALID_PARAMETERS;
-     struct sockaddr remoteAddr;
+     //struct sockaddr remoteAddr;
+     struct sockaddr_storage remoteAddr;
      socklen_t addrLen = sizeof(remoteAddr);
-     if (listeningSock->sock != -1)
+ 
+     if (listeningSock->sock != INVALID_SOCKET) // Vérifie bien avec INVALID_SOCKET
      {
-         S2OPC_TEMP_FAILURE_RETRY(acceptedImpl->sock, accept(listeningSock->sock, &remoteAddr, &addrLen));
-         //        SOPC_CONSOLE_PRINTF("selectserver: new connection from %s on socket %d\n",
-         //                inet_ntop(remoteaddr.sa_family,
-         //                    get_in_addr((struct sockaddr*)&remoteaddr),
-         //                    remoteIP, INET6_ADDRSTRLEN),
-         //                acceptSock);
-         if (acceptedImpl->sock != -1)
+         printf("Listening socket value: %Iu\n", (UINT_PTR) listeningSock->sock);
+ 
+         S2OPC_TEMP_FAILURE_RETRY(acceptedImpl->sock, accept(listeningSock->sock, (struct sockaddr*)&remoteAddr, &addrLen));
+ 
+         if (acceptedImpl->sock == INVALID_SOCKET)
          {
-             status = Socket_Configure((int)acceptedImpl->sock, setNonBlocking);
+             int errCode = WSAGetLastError();
+             printf("accept() failed! WSA error code = %d\n", errCode);
+         }
+         else
+         {
+             printf("accept() succeeded. Accepted socket: %Iu\n", (UINT_PTR) acceptedImpl->sock);
+             status = Socket_Configure((int) acceptedImpl->sock, setNonBlocking);
          }
      }
+ 
      if (SOPC_STATUS_OK == status)
      {
          *acceptedSock = acceptedImpl;
      }
      else
      {
-         //SOPC_Socket_Close(&acceptedImpl);
-         closesocket(acceptedImpl->sock);
+         if (acceptedImpl->sock != INVALID_SOCKET)
+         {
+             closesocket(acceptedImpl->sock);
+         }
+         SOPC_Free(acceptedImpl);
      }
+ 
      return status;
  }
+ 
  
  SOPC_ReturnStatus SOPC_Socket_Connect(SOPC_Socket sock, SOPC_Socket_AddressInfo* addr)
  {

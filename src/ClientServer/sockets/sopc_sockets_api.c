@@ -25,6 +25,8 @@
 #include "sopc_sockets_event_mgr.h"
 #include "sopc_sockets_internal_ctx.h"
 #include "sopc_sockets_network_event_mgr.h"
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
 void SOPC_Sockets_EnqueueEvent(SOPC_Sockets_InputEvent socketEvent, uint32_t id, uintptr_t params, uintptr_t auxParam)
 {
@@ -39,12 +41,27 @@ uint32_t SOPC_Sockets_Get_QueueSize(void)
     return SOPC_SocketsInternal_Get_QueueSize();
 }
 
+static bool sockets_initialized = false;
+
 void SOPC_Sockets_Initialize(void)
 {
-    bool init = SOPC_Socket_Network_Initialize();
-    SOPC_ASSERT(true == init);
+
+    if (!sockets_initialized)
+    {
+        WSADATA wsaData;
+        int res = WSAStartup(MAKEWORD(2, 2), &wsaData);
+        if (res != 0)
+        {
+            printf("WSAStartup failed: %d\n", res);
+        }
+        sockets_initialized = true;
+    }
+
+
+    //SOPC_Sockets_Initialize();
     SOPC_SocketsInternalContext_Initialize();
     SOPC_SocketsNetworkEventMgr_Initialize();
+ 
 }
 
 void SOPC_Sockets_SetEventHandler(SOPC_EventHandler* handler)

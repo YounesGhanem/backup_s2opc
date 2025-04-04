@@ -34,9 +34,12 @@ target_include_directories(udp_rt_pub PRIVATE ${S2OPC_ROOT_PATH}/src/Common/help
 target_link_libraries(udp_rt_pub PRIVATE s2opc_pubsub)
 
 # Benchmark Pubsub
-add_executable(bench_pubsub "benchmark/main.c"
-                            "benchmark/pubsub.c"
-                            "benchmark/cache.c")
+# add_executable(bench_pubsub "benchmark/main.c"
+#                             "benchmark/pubsub.c"
+#                             "benchmark/cache.c")
+
+ add_executable(bench_pubsub "benchmark/pubsub.c"
+                             "benchmark/cache.c")
 
 target_compile_options(bench_pubsub PRIVATE ${S2OPC_COMPILER_FLAGS})
 target_compile_definitions(bench_pubsub PRIVATE ${S2OPC_DEFINITIONS})
