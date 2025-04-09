@@ -1062,6 +1062,10 @@ static bool SOPC_PubScheduler_Connection_Get_Transport(uint32_t index,
         allocSuccess =
             (SOPC_STATUS_OK == SOPC_UDP_Socket_CreateToSend(
                                    outUDPaddr, SOPC_PubSubConnection_Get_InterfaceName(connection), true, &outSock));
+        const char* interface = SOPC_PubSubConnection_Get_InterfaceName(connection);
+        
+        printf(">> Used interface for the publisher: %s \n", interface ? interface : "<DEFAULT>");
+
         if (!allocSuccess)
         {
             *ctx = NULL;

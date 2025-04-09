@@ -64,11 +64,20 @@ int64_t SOPC_HighRes_TimeReference_DeltaUs(const SOPC_HighRes_TimeReference* tRe
 }
 
 /***************************************************/
+// bool SOPC_HighRes_TimeReference_IsExpired(const SOPC_HighRes_TimeReference* t, const SOPC_HighRes_TimeReference* now)
+// {
+//     SOPC_ASSERT(NULL != t);
+//     SOPC_UNUSED_ARG(now);
+//     return false; // not implemented in Windows
+// }
+
 bool SOPC_HighRes_TimeReference_IsExpired(const SOPC_HighRes_TimeReference* t, const SOPC_HighRes_TimeReference* now)
 {
     SOPC_ASSERT(NULL != t);
-    SOPC_UNUSED_ARG(now);
-    return false; // not implemented in Windows
+    LARGE_INTEGER current;
+    QueryPerformanceCounter(&current);
+
+    return (t->ticksMs <= (uint64_t)current.QuadPart);
 }
 
 /***************************************************/

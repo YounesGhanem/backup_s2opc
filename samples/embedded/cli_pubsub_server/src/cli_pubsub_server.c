@@ -863,6 +863,9 @@ void SOPC_Platform_Main(void)
     setupServer();
     setupPubSub();
 
+    // bool started = SOPC_PubScheduler_Start(pPubSubConfig, pSourceConfig, 0);
+    // SOPC_ASSERT(started && "Failed to start Publisher");
+
     //////////////////////////////////
     // Start the server
     SOPC_Atomic_Int_Set(&gStopped, 0);
