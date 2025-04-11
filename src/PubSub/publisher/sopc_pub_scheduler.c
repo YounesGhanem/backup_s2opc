@@ -842,7 +842,7 @@ static void* thread_start_publish(void* arg)
     while (!SOPC_Atomic_Int_Get(&pubSchedulerCtx.quit))
     {
         /* Wake-up: find which message(s) needs to be sent */
-        SOPC_HighRes_TimeReference_GetTime(now);
+        SOPC_HighRes_TimeReference_GetTime(now);  // assign ticks
 
         MessageCtx* context = MessageCtxArray_FindMostExpired();
         /* Check if message has expired and need to be reschedule and eventually sent */

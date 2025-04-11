@@ -50,10 +50,19 @@ SOPC_TimeReference SOPC_TimeReference_GetCurrent(void)
 }
 
 /***************************************************/
+// void SOPC_HighRes_TimeReference_GetTime(SOPC_HighRes_TimeReference* t)
+// {
+//     SOPC_UNUSED_ARG(t);
+// }
+
 void SOPC_HighRes_TimeReference_GetTime(SOPC_HighRes_TimeReference* t)
 {
-    SOPC_UNUSED_ARG(t);
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+    //TODO : tickMs is wrong. These are ticks , no ms.
+    t->ticksMs = (uint64_t) now.QuadPart; 
 }
+
 
 /***************************************************/
 int64_t SOPC_HighRes_TimeReference_DeltaUs(const SOPC_HighRes_TimeReference* tRef, const SOPC_HighRes_TimeReference* t)
@@ -73,22 +82,46 @@ int64_t SOPC_HighRes_TimeReference_DeltaUs(const SOPC_HighRes_TimeReference* tRe
 
 bool SOPC_HighRes_TimeReference_IsExpired(const SOPC_HighRes_TimeReference* t, const SOPC_HighRes_TimeReference* now)
 {
-    SOPC_ASSERT(NULL != t);
-    LARGE_INTEGER current;
-    QueryPerformanceCounter(&current);
+    SOPC_ASSERT(NULL != t && NULL != now);
 
-    return (t->ticksMs <= (uint64_t)current.QuadPart);
+    return now->ticksMs >= t->ticksMs;
 }
 
-/***************************************************/
-void SOPC_HighRes_TimeReference_AddSynchedDuration(SOPC_HighRes_TimeReference* t,
-                                                   uint64_t duration_us,
-                                                   int32_t offset_us)
-{
-    SOPC_UNUSED_ARG(offset_us);
-    SOPC_ASSERT(NULL != t);
 
-    t->ticksMs += (uint64_t)(duration_us / (uint64_t) US_TO_MS);
+/***************************************************/
+// void SOPC_HighRes_TimeReference_AddSynchedDuration(SOPC_HighRes_TimeReference* t,
+//                                                    uint64_t duration_us,
+//                                                    int32_t offset_us)
+// {
+//     SOPC_UNUSED_ARG(offset_us);
+//     SOPC_ASSERT(NULL != t);
+
+//     t->ticksMs += (uint64_t)(duration_us / (uint64_t) US_TO_MS);
+// }
+void SOPC_HighRes_TimeReference_AddSynchedDuration(SOPC_HighRes_TimeReference* t,
+    uint64_t duration_us,
+    int32_t offset_us)
+{
+SOPC_ASSERT(NULL != t);
+
+// Obtenir la fréquence du compteur haute résolution
+LARGE_INTEGER freq;
+QueryPerformanceFrequency(&freq);
+
+// Appliquer l'offset s'il existe
+int64_t total_us = (int64_t) duration_us + (int64_t) offset_us;
+
+// Protection minimale contre les durées négatives trop grandes
+if (total_us < 0)
+{
+total_us = 0;
+}
+
+// Convertir en ticks haute résolution
+uint64_t ticksToAdd = ((uint64_t) total_us * freq.QuadPart) / 1000000ULL;
+
+// Ajouter les ticks au temps existant
+t->ticksMs += ticksToAdd;
 }
 
 /***************************************************/
